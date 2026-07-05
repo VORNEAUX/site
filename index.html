@@ -772,10 +772,22 @@
     display:block;
     opacity:0;
     pointer-events:none;
-    clip-path:inset(100% 0 0 0);
+    clip-path:circle(0% at 50% 50%);
     transition:opacity .5s ease;
   }
   #immersiveScene.active{ opacity:1; }
+  /* Ignition flash: a single bright pulse at the exact instant Play is
+     pressed — the "spark" that reads as the old world being blown apart
+     before the particle shockwave and the immersive scene take over. */
+  #immersiveFlash{
+    position:fixed;
+    inset:0;
+    z-index:4;
+    pointer-events:none;
+    opacity:0;
+    mix-blend-mode:screen;
+    background:radial-gradient(circle at 50% 50%, rgba(255,255,255,0.9), rgba(var(--immersive-accent),0.65) 22%, transparent 64%);
+  }
   /* Vignette scrim: the one and only "adaptive interface" mechanism —
      rather than repainting every text color per track, it darkens the
      top/bottom bands and floor of the viewport just enough to keep the
@@ -1008,6 +1020,7 @@
 <canvas id="scene"></canvas>
 <canvas id="immersiveScene" aria-hidden="true"></canvas>
 <div id="immersiveScrim" aria-hidden="true"></div>
+<div id="immersiveFlash" aria-hidden="true"></div>
 <div class="glow-cursor" id="glowCursor"></div>
 
 <nav id="mainNav">
@@ -2772,11 +2785,18 @@ window.VXData = {
   }
   var glowTex = makeGlowTexture();
 
-  /* ---- particle field: a full volumetric shell around the camera ---- */
+  /* ---- particle field: a full volumetric shell around the camera.
+     pBase is each particle's resting position once the world has fully
+     formed; pOrigin is where it starts — collapsed into a tight cluster
+     at the center — so the very first thing that happens on Play is
+     these particles blasting outward from a single point into pBase.
+     That blast *is* the entrance; nothing before it, nothing bolted on
+     after. ---- */
   var PARTICLE_COUNT = isMobile ? 320 : 950;
   var pGeo = new THREE.BufferGeometry();
   var pPos = new Float32Array(PARTICLE_COUNT * 3);
   var pBase = new Float32Array(PARTICLE_COUNT * 3);
+  var pOrigin = new Float32Array(PARTICLE_COUNT * 3);
   var pPhase = new Float32Array(PARTICLE_COUNT);
   var pSpeed = new Float32Array(PARTICLE_COUNT);
   for(var i = 0; i < PARTICLE_COUNT; i++){
@@ -2800,59 +2820,94 @@ window.VXData = {
   var particles = new THREE.Points(pGeo, pMat);
   scene.add(particles);
 
-  /* ---- portal formation: entrance-only burst, built exactly like the
-     hero's particle "V" — scattered points converging (eased lerp) into
-     a shape, here a ring the camera flies through — then dissolving
-     into the ambient field above once the world has fully arrived. ---- */
-  var PORTAL_COUNT = isMobile ? 220 : 520;
-  var portalStart = new Float32Array(PORTAL_COUNT * 3);
-  var portalTarget = new Float32Array(PORTAL_COUNT * 3);
-  var portalGeo = new THREE.BufferGeometry();
-  var portalCurrent = new Float32Array(PORTAL_COUNT * 3);
-  portalGeo.setAttribute('position', new THREE.BufferAttribute(portalCurrent, 3));
-  var portalMat = new THREE.PointsMaterial({
-    map: glowTex, color: accentColor, size: isMobile ? 0.14 : 0.11,
+  function reseedOrigin(){
+    // a small, dense knot at the center of the world — the single point
+    // everything detonates from
+    for(var i = 0; i < PARTICLE_COUNT; i++){
+      var r0 = Math.random() * 0.55;
+      var th = Math.random() * Math.PI * 2;
+      var ph = Math.acos((Math.random() * 2) - 1);
+      pOrigin[i*3]   = Math.sin(ph) * Math.cos(th) * r0;
+      pOrigin[i*3+1] = Math.cos(ph) * r0 * 0.6 - 1.5;
+      pOrigin[i*3+2] = Math.sin(ph) * Math.sin(th) * r0 - 4;
+    }
+  }
+  reseedOrigin();
+
+  /* ---- blast debris: a second, sparser cloud that also detonates from
+     the center but overshoots past the resting shell and burns all the
+     way out — the visible "shockwave" sparks of the explosion, distinct
+     from the particles that stay behind to become the ambient field. ---- */
+  var DEBRIS_COUNT = isMobile ? 220 : 520;
+  var debrisStart = new Float32Array(DEBRIS_COUNT * 3);
+  var debrisTarget = new Float32Array(DEBRIS_COUNT * 3);
+  var debrisGeo = new THREE.BufferGeometry();
+  var debrisCurrent = new Float32Array(DEBRIS_COUNT * 3);
+  debrisGeo.setAttribute('position', new THREE.BufferAttribute(debrisCurrent, 3));
+  var debrisMat = new THREE.PointsMaterial({
+    map: glowTex, color: accentColor, size: isMobile ? 0.15 : 0.12,
     transparent: true, opacity: 0, depthWrite: false,
     blending: THREE.AdditiveBlending, sizeAttenuation: true
   });
-  var portalPoints = new THREE.Points(portalGeo, portalMat);
-  scene.add(portalPoints);
+  var debrisPoints = new THREE.Points(debrisGeo, debrisMat);
+  scene.add(debrisPoints);
 
-  function reseedPortal(){
-    for(var i = 0; i < PORTAL_COUNT; i++){
-      // start: scattered across a wide volume, like the hero's V burst
-      portalStart[i*3]   = (Math.random() - 0.5) * 34;
-      portalStart[i*3+1] = (Math.random() - 0.5) * 24;
-      portalStart[i*3+2] = (Math.random() - 0.5) * 30 - 6;
-      // target: a ring/aperture the camera passes through on its way in
-      var ang = Math.random() * Math.PI * 2;
-      var rr = 3.1 + (Math.random() - 0.5) * 0.5;
-      portalTarget[i*3]   = Math.cos(ang) * rr;
-      portalTarget[i*3+1] = Math.sin(ang) * rr * 0.62 + 0.2;
-      portalTarget[i*3+2] = -2.2 + (Math.random() - 0.5) * 0.4;
+  function reseedDebris(){
+    for(var i = 0; i < DEBRIS_COUNT; i++){
+      var r0 = Math.random() * 0.4;
+      var th0 = Math.random() * Math.PI * 2;
+      var ph0 = Math.acos((Math.random() * 2) - 1);
+      debrisStart[i*3]   = Math.sin(ph0) * Math.cos(th0) * r0;
+      debrisStart[i*3+1] = Math.cos(ph0) * r0 * 0.6 - 1.5;
+      debrisStart[i*3+2] = Math.sin(ph0) * Math.sin(th0) * r0 - 4;
+      // flung far past the ambient shell, then burns out — never settles
+      var rFar = 15 + Math.random() * 21;
+      var thF = Math.random() * Math.PI * 2;
+      var phF = Math.acos((Math.random() * 2) - 1);
+      debrisTarget[i*3]   = Math.sin(phF) * Math.cos(thF) * rFar;
+      debrisTarget[i*3+1] = Math.cos(phF) * rFar * 0.55 - 1.5;
+      debrisTarget[i*3+2] = Math.sin(phF) * Math.sin(thF) * rFar - 4;
     }
   }
-  reseedPortal();
+  reseedDebris();
 
-  /* ---- roaming light beams: appear, drift, and dissolve at different
-     points in space instead of sitting in one fixed spot — the
-     "moving stage light" behaviour asked for. ---- */
-  var BEAM_COUNT = isMobile ? 4 : 7;
+  /* ---- roaming light beams: a pool of possible beams, mostly dormant.
+     They don't run on their own timers — the render loop below wakes
+     them on beat hits, relocates/reshapes them on section changes, and
+     lets them go dark in quiet passages, so they read as music-driven
+     protagonists rather than a looping ambient animation. ---- */
+  var BEAM_COUNT = isMobile ? 5 : 9;
   var beams = [];
-  function spawnBeam(b, immediate){
-    b.mesh.position.set(
+  function randomBeamSpot(){
+    return new THREE.Vector3(
       (Math.random() - 0.5) * 16,
       (Math.random() - 0.3) * 9,
       (Math.random() - 0.5) * 14 - 5
     );
+  }
+  function randomBeamScale(){
+    return new THREE.Vector3(0.7 + Math.random() * 0.8, 0.6 + Math.random() * 0.9, 1);
+  }
+  function activateBeam(b){
+    var spot = randomBeamSpot();
+    b.mesh.position.copy(spot);
+    b.posTarget.copy(spot);
+    var sc = randomBeamScale();
+    b.mesh.scale.copy(sc);
+    b.scaleTarget.copy(sc);
     b.mesh.rotation.z = Math.random() * Math.PI * 2;
     b.mesh.rotation.x = -0.2 + Math.random() * 0.4;
-    var scale = 0.7 + Math.random() * 0.8;
-    b.mesh.scale.set(scale, 0.6 + Math.random() * 0.9, 1);
-    b.maxLife = 3 + Math.random() * 4;
+    b.maxLife = 2.2 + Math.random() * 3.4;
     b.life = 0;
-    b.delay = immediate ? 0 : Math.random() * 3.5;
-    b.peak = 0.5 + Math.random() * 0.5;
+    b.peak = 0.55 + Math.random() * 0.5;
+    b.active = true;
+  }
+  function retargetBeam(b){
+    // stays alive and visible, but is now travelling toward a new spot
+    // and a new shape — the "spostarsi / trasformarsi" behaviour
+    b.posTarget.copy(randomBeamSpot());
+    b.scaleTarget.copy(randomBeamScale());
+    b.maxLife = Math.max(b.maxLife, b.life + 1.6 + Math.random() * 1.2);
   }
   for(var bi = 0; bi < BEAM_COUNT; bi++){
     var beamGeo = new THREE.PlaneGeometry(2.6, 16);
@@ -2862,9 +2917,10 @@ window.VXData = {
     });
     var beamMesh = new THREE.Mesh(beamGeo, beamMat);
     scene.add(beamMesh);
-    var b = { mesh: beamMesh, life: 0, maxLife: 4, delay: 0, peak: 0.7 };
-    spawnBeam(b, false);
-    beams.push(b);
+    beams.push({
+      mesh: beamMesh, active: false, life: 0, maxLife: 4, peak: 0.7,
+      posTarget: new THREE.Vector3(), scaleTarget: new THREE.Vector3(1, 1, 1)
+    });
   }
 
   /* ---- floor glow: gives the scene a horizon / sense of ground ---- */
@@ -2880,7 +2936,7 @@ window.VXData = {
   function setAccent(rgb){
     accentColor.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
     pMat.color.copy(accentColor);
-    portalMat.color.copy(accentColor);
+    debrisMat.color.copy(accentColor);
     beams.forEach(function(b){ b.mesh.material.color.copy(accentColor); });
     floorMat.color.copy(accentColor);
     roamLights.forEach(function(rl){ rl.mesh.color.copy(accentColor); });
@@ -2891,23 +2947,36 @@ window.VXData = {
   /* ---- state machine driving the cinematic build-up / dissolve ---- */
   var state = 'idle'; // idle | entering | active | exiting
   var transitionStart = 0;
-  var ENTER_MS = 1850, EXIT_MS = 1000;
+  var ENTER_MS = 1900, EXIT_MS = 1000;
   function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
   function easeInCubic(t){ return t * t * t; }
+  function easeOutExpo(t){ return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t); }
   function lerp(a, b, t){ return a + (b - a) * t; }
+
+  var flashEl = document.getElementById('immersiveFlash');
 
   function enter(rgb){
     setAccent(rgb || GOLD);
     if(state === 'idle' || state === 'exiting'){
       transitionStart = performance.now();
       state = 'entering';
-      reseedPortal();
-      portalPoints.visible = true;
+      reseedOrigin();
+      reseedDebris();
+      debrisPoints.visible = true;
+      sceneEl.style.clipPath = 'circle(0% at 50% 50%)';
       sceneEl.classList.add('active');
       scrimEl.classList.add('active');
+      // reset the music-driven beam choreography for a clean ignition
+      beams.forEach(function(b){ b.active = false; b.mesh.material.opacity = 0; });
+      prevBeatStrength = 0; levelFast = 0; levelSlow = 0;
+      lastBeamSpawnAt = 0; lastShiftAt = 0;
+      // a couple of beams are already alight the instant the world lands,
+      // so it never opens on total darkness while waiting for the first beat
+      activateBeam(beams[0]);
+      if(beams[1]){ activateBeam(beams[1]); }
     }
     // switching tracks while already in: the accent crossfade above is
-    // enough — no need to replay the whole portal entrance every time
+    // enough — no need to replay the whole detonation every time
   }
   function exit(){
     if(state === 'active' || state === 'entering'){
@@ -2920,71 +2989,98 @@ window.VXData = {
   /* ---- render loop ---- */
   var clock = new THREE.Clock();
   var beatPunch = 0;
-  var portalFade = 0; // 1 right as the world arrives, eases back to 0
+  var debrisFade = 0; // 1 right as the blast happens, eases back to 0
+
+  /* music-choreography trackers for the light beams */
+  var prevBeatStrength = 0, levelFast = 0, levelSlow = 0;
+  var lastBeamSpawnAt = 0, lastShiftAt = 0;
 
   function tick(){
     requestAnimationFrame(tick);
     if(document.hidden || state === 'idle'){ clock.getDelta(); return; }
     var dt = Math.min(clock.getDelta(), 0.1);
     var t = clock.elapsedTime;
+    var now = performance.now();
 
-    var progress = 1;
+    var progress = 1;      // overall reveal/arrival envelope (also used to fade out on exit)
+    var blast = 1;          // explosion progress for particle/debris positions only
     if(state === 'entering'){
-      var p = Math.min(1, (performance.now() - transitionStart) / ENTER_MS);
+      var p = Math.min(1, (now - transitionStart) / ENTER_MS);
       progress = easeOutCubic(p);
-      sceneEl.style.clipPath = 'inset(' + (100 * (1 - progress)).toFixed(2) + '% 0 0 0)';
-      var posP = portalGeo.attributes.position.array;
-      for(var pi = 0; pi < PORTAL_COUNT; pi++){
-        var ix = pi * 3;
-        posP[ix]   = lerp(portalStart[ix],   portalTarget[ix],   progress);
-        posP[ix+1] = lerp(portalStart[ix+1], portalTarget[ix+1], progress);
-        posP[ix+2] = lerp(portalStart[ix+2], portalTarget[ix+2], progress);
+      blast = easeOutExpo(p);
+      // radial reveal from the exact center of the screen — the site
+      // itself feels like it's being engulfed outward by the blast
+      sceneEl.style.clipPath = 'circle(' + (150 * progress).toFixed(2) + '% at 50% 50%)';
+
+      var posD = debrisGeo.attributes.position.array;
+      var debrisBlast = easeOutCubic(Math.min(1, p * 1.5));
+      for(var di = 0; di < DEBRIS_COUNT; di++){
+        var dx = di * 3;
+        posD[dx]   = lerp(debrisStart[dx],   debrisTarget[dx],   debrisBlast);
+        posD[dx+1] = lerp(debrisStart[dx+1], debrisTarget[dx+1], debrisBlast);
+        posD[dx+2] = lerp(debrisStart[dx+2], debrisTarget[dx+2], debrisBlast);
       }
-      portalGeo.attributes.position.needsUpdate = true;
-      portalMat.opacity = Math.min(1, progress * 1.6) * 0.9;
-      portalFade = 1;
+      debrisGeo.attributes.position.needsUpdate = true;
+      // sparks are brightest right as they're flung, then burn out completely
+      var debrisBurn = 1 - easeInCubic(Math.max(0, Math.min(1, (p - 0.3) / 0.7)));
+      debrisMat.opacity = Math.min(1, p * 3.2) * 0.95 * debrisBurn;
+      debrisFade = 1;
+
+      // ignition flash: a single bright pulse at the moment of detonation
+      if(flashEl){ flashEl.style.opacity = Math.max(0, 1 - p * 4.5).toFixed(3); }
+
       if(p >= 1){ state = 'active'; }
     } else if(state === 'exiting'){
-      var p2 = Math.min(1, (performance.now() - transitionStart) / EXIT_MS);
+      var p2 = Math.min(1, (now - transitionStart) / EXIT_MS);
       progress = 1 - easeInCubic(p2);
-      sceneEl.style.clipPath = 'inset(' + (100 * (1 - progress)).toFixed(2) + '% 0 0 0)';
+      sceneEl.style.clipPath = 'circle(' + (150 * progress).toFixed(2) + '% at 50% 50%)';
+      if(flashEl){ flashEl.style.opacity = '0'; }
       if(p2 >= 1){
         state = 'idle';
         sceneEl.classList.remove('active');
         scrimEl.classList.remove('active');
-        sceneEl.style.clipPath = 'inset(100% 0 0 0)';
+        sceneEl.style.clipPath = 'circle(0% at 50% 50%)';
         document.documentElement.style.setProperty('--immersive-beat', '0');
+        beams.forEach(function(b){ b.active = false; b.mesh.material.opacity = 0; });
         return;
       }
     } else {
-      // active: the portal ring has done its job — dissolve it away so
+      // active: the blast debris has done its job — dissolve it away so
       // the persistent ambient field is the only thing left running
-      portalFade = Math.max(0, portalFade - dt * 1.6);
-      portalMat.opacity = portalFade * 0.9;
+      debrisFade = Math.max(0, debrisFade - dt * 1.6);
+      debrisMat.opacity = debrisFade * 0.9;
+      if(flashEl){ flashEl.style.opacity = '0'; }
     }
 
     var audio = window.VX_AUDIO || {};
     var bass = audio.bass || 0, mid = audio.mid || 0, treble = audio.treble || 0;
+    var level = audio.level || 0;
     beatPunch += ((audio.beatStrength || 0) - beatPunch) * 0.4;
     document.documentElement.style.setProperty('--immersive-beat', beatPunch.toFixed(3));
 
-    /* camera: flies in/out synced with the reveal, idle drift, beat punch */
-    camera.position.z = CAMERA_FAR_Z + (CAMERA_REST_Z - CAMERA_FAR_Z) * progress;
-    camera.position.x = Math.sin(t * 0.12) * 0.4;
-    camera.position.y = 0.4 + Math.sin(t * 0.09) * 0.2;
-    camera.fov = (CAMERA_FAR_FOV + (CAMERA_REST_FOV - CAMERA_FAR_FOV) * progress) - beatPunch * 2.2;
+    /* camera: flies in/out synced with the reveal, idle drift, beat punch,
+       plus a brief outward lens-punch right at the moment of detonation */
+    var entryKick = state === 'entering' ? Math.max(0, 1 - ((now - transitionStart) / ENTER_MS) * 3.2) : 0;
+    camera.position.z = CAMERA_FAR_Z + (CAMERA_REST_Z - CAMERA_FAR_Z) * progress - entryKick * 1.4;
+    camera.position.x = Math.sin(t * 0.12) * 0.4 + (Math.random() - 0.5) * entryKick * 0.4;
+    camera.position.y = 0.4 + Math.sin(t * 0.09) * 0.2 + (Math.random() - 0.5) * entryKick * 0.25;
+    camera.fov = (CAMERA_FAR_FOV + (CAMERA_REST_FOV - CAMERA_FAR_FOV) * progress) - beatPunch * 2.2 + entryKick * 16;
     camera.lookAt(0, -0.4, -4);
     camera.updateProjectionMatrix();
 
-    /* particles: ambient drift + real outward pulse on bass/beat */
+    /* particles: explode out from the center on entry, then ambient drift
+       + real outward pulse on bass/beat once settled */
     var pos = pGeo.attributes.position.array;
     var push = 1 + bass * 0.12 + beatPunch * 0.35;
     for(var i = 0; i < PARTICLE_COUNT; i++){
       var jx = i * 3;
       var drift = Math.sin(t * pSpeed[i] + pPhase[i]) * (0.4 + treble * 0.6);
-      pos[jx]   = pBase[jx]   * push + Math.cos(t * 0.2 + pPhase[i]) * 0.15;
-      pos[jx+1] = pBase[jx+1] * push + drift * 0.25;
-      pos[jx+2] = pBase[jx+2] * push;
+      var tx = pBase[jx]   * push + Math.cos(t * 0.2 + pPhase[i]) * 0.15;
+      var ty = pBase[jx+1] * push + drift * 0.25;
+      var tz = pBase[jx+2] * push;
+      pos[jx]   = lerp(pOrigin[jx],   tx, blast);
+      pos[jx+1] = lerp(pOrigin[jx+1], ty, blast);
+      pos[jx+2] = lerp(pOrigin[jx+2], tz, blast);
     }
     pGeo.attributes.position.needsUpdate = true;
     pMat.opacity = (0.55 + mid * 0.35 + beatPunch * 0.25) * progress;
@@ -3002,17 +3098,56 @@ window.VXData = {
       rl.mesh.intensity = (1.1 + mid * 2.2 + beatPunch * 2.6) * progress;
     });
 
-    /* light beams: appear, drift and dissolve at different points, then
-       respawn elsewhere — never static, never repeating in place */
+    /* light beams: driven by the actual music rather than their own clock.
+       - a rolling fast/slow read on overall level flags both quiet
+         passages (fade everything, spawn nothing) and section changes
+         (large gap between the two — a drop, a breakdown, a build) which
+         send active beams to a new spot/shape or fast-track their exit;
+       - a rising edge on the beat-onset detector spawns a fresh beam in
+         a free slot, more likely to fire the more intense the moment is. */
+    var beatEdge = (audio.beatStrength || 0) > prevBeatStrength + 0.05 && (audio.beatStrength || 0) > 0.32;
+    prevBeatStrength = audio.beatStrength || 0;
+    levelFast += (level - levelFast) * 0.18;
+    levelSlow += (level - levelSlow) * 0.015;
+    var sectionShift = Math.abs(levelFast - levelSlow);
+    var isQuiet = levelSlow < 0.055;
+
+    if(state === 'active'){
+      if(beatEdge && !isQuiet && (now - lastBeamSpawnAt) > 90){
+        var spawnChance = 0.35 + level * 0.5 + beatPunch * 0.3;
+        if(Math.random() < spawnChance){
+          var freeSlot = beams.find(function(b){ return !b.active; });
+          if(freeSlot){ activateBeam(freeSlot); lastBeamSpawnAt = now; }
+        }
+      }
+      if(sectionShift > 0.14 && (now - lastShiftAt) > 1100){
+        lastShiftAt = now;
+        beams.forEach(function(b){
+          if(!b.active) return;
+          if(Math.random() < 0.5){ retargetBeam(b); }
+          else { b.life = b.maxLife * 0.86; }
+        });
+        var burst = isMobile ? 1 : 2;
+        for(var s = 0; s < burst; s++){
+          var slot2 = beams.find(function(b){ return !b.active; });
+          if(slot2){ activateBeam(slot2); }
+        }
+      }
+      if(isQuiet){
+        beams.forEach(function(b){ if(b.active){ b.life = Math.max(b.life, b.maxLife * 0.9); } });
+      }
+    }
+
     beams.forEach(function(b){
-      if(b.delay > 0){ b.delay -= dt; return; }
+      if(!b.active) return;
       b.life += dt;
       var lifeT = b.life / b.maxLife;
-      if(lifeT >= 1){ spawnBeam(b, false); return; }
+      if(lifeT >= 1){ b.active = false; b.mesh.material.opacity = 0; return; }
       var envelope = Math.sin(Math.PI * Math.min(1, lifeT));
-      b.mesh.rotation.z += dt * 0.06;
-      b.mesh.position.y += Math.sin(t * 0.4 + b.mesh.position.x) * dt * 0.06;
-      b.mesh.material.opacity = envelope * b.peak * (0.16 + mid * 0.3 + beatPunch * 0.3) * progress;
+      b.mesh.position.lerp(b.posTarget, Math.min(1, dt * 1.3));
+      b.mesh.scale.lerp(b.scaleTarget, Math.min(1, dt * 1.1));
+      b.mesh.rotation.z += dt * 0.05;
+      b.mesh.material.opacity = envelope * b.peak * (0.18 + mid * 0.32 + beatPunch * 0.38) * progress;
     });
 
     floorMat.opacity = (0.1 + bass * 0.18 + beatPunch * 0.2) * progress;
