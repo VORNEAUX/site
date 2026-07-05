@@ -1,0 +1,26 @@
+[
+  {
+    "id": "shadow-mode",
+    "title": "Shadow Mode",
+    "tag": "Signal 003 · 2026",
+    "duration": "0:45",
+    "src": "assets/audio/tracks/shadow-mode.mp3",
+    "cover": "assets/audio/covers/shadow-mode.jpg"
+  },
+  {
+    "id": "neon-rush",
+    "title": "Neon Rush",
+    "tag": "Signal 002 · 2026",
+    "duration": "1:03",
+    "src": "assets/audio/tracks/neon-rush.mp3",
+    "cover": "assets/audio/covers/neon-rush.jpg"
+  },
+  {
+    "id": "lock-in-nightshift",
+    "title": "Lock In // Nightshift",
+    "tag": "Signal 001 · 2026",
+    "duration": "0:33",
+    "src": "assets/audio/tracks/lock-in-nightshift.mp3",
+    "cover": "assets/audio/covers/lock-in-nightshift.jpg"
+  }
+]
