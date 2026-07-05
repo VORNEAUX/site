@@ -747,102 +747,57 @@
     transition:opacity .6s ease;
   }
 
-  /* ---------- IMMERSIVE MODE ----------
-     Activates automatically whenever a Signal starts playing (see the
-     VXImmersive script near the end of the page). A cheap Canvas2D layer
-     (particles + volumetric glow) plus two CSS-only layers (aura, scrim)
-     turn the page into a reactive audiovisual environment without adding
-     a second WebGL context — kept light on purpose so it stays smooth on
-     modest devices. Every layer is inert and invisible until the body
-     carries .immersive-active, and everything respects reduced-motion. */
+  /* =========================================================
+     IMMERSIVE MODE
+     A full-viewport 3D environment that builds itself in when a
+     Signal starts playing and dissolves back out when it stops.
+     Sits between the ambient starfield (#scene, z 0) and the real
+     page content (unpositioned, so it paints above both).
+     --immersive-accent is a live "R,G,B" triplet set by JS per
+     track; --immersive-scrim is a 0..1 contrast-protection value
+     the JS raises automatically when the accent runs bright, so
+     ivory text never loses readability against the effect.
+  ========================================================= */
+  :root{
+    --immersive-accent:201,169,110;
+    --immersive-scrim:0;
+  }
   #immersiveScene{
-    position:fixed;inset:0;width:100%;height:100%;
-    z-index:1;
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:2;
     display:block;
     opacity:0;
     pointer-events:none;
-    transition:opacity 1.4s var(--ease);
+    clip-path:inset(100% 0 0 0);
+    transition:opacity .5s ease;
   }
-  body.immersive-active #immersiveScene{ opacity:1; }
-
-  #immersiveAura{
-    position:fixed;inset:-10%;
-    z-index:1;
-    pointer-events:none;
-    opacity:0;
-    mix-blend-mode:screen;
-    filter:blur(2px);
-    transition:opacity 1.4s var(--ease);
-    background:
-      radial-gradient(38% 46% at 8% 12%, var(--vx-hue-a, rgba(201,169,110,0.5)), transparent 70%),
-      radial-gradient(42% 50% at 96% 88%, var(--vx-hue-b, rgba(201,169,110,0.4)), transparent 72%),
-      radial-gradient(30% 40% at 92% 8%, var(--vx-hue-c, rgba(201,169,110,0.3)), transparent 70%);
-  }
-  body.immersive-active #immersiveAura{ opacity:var(--vx-aura-opacity, 0.5); }
-
+  #immersiveScene.active{ opacity:1; }
+  /* Vignette scrim: the one and only "adaptive interface" mechanism —
+     rather than repainting every text color per track, it darkens the
+     top/bottom bands and floor of the viewport just enough to keep the
+     existing ivory/gold text and icons at a safe contrast ratio against
+     whatever glow is happening behind them. */
   #immersiveScrim{
-    position:fixed;inset:0;
-    z-index:1;
+    position:fixed;
+    inset:0;
+    z-index:3;
     pointer-events:none;
     opacity:0;
-    background:radial-gradient(120% 90% at 50% 30%, rgba(6,6,12,0.1), rgba(6,6,12,0.68) 100%);
-    transition:opacity 1.2s var(--ease);
+    transition:opacity .7s ease;
+    background:
+      linear-gradient(to bottom, rgba(4,4,10,0.6), transparent 26%, transparent 70%, rgba(4,4,10,0.65)),
+      radial-gradient(120% 60% at 50% 100%, rgba(4,4,10,0.4), transparent 62%);
   }
-  body.immersive-active #immersiveScrim{ opacity:1; }
-
-  #immersiveTransition{
-    position:fixed;inset:0;
-    z-index:150;
-    pointer-events:none;
-    opacity:0;
-  }
-  #immersiveTransition.play.enter{
-    background:radial-gradient(circle at 50% 38%, rgba(242,237,228,0.9) 0%, var(--gold) 18%, rgba(8,8,16,0.97) 46%, rgba(8,8,16,0) 72%);
-    animation: vxEnterSweep 1.05s var(--ease) forwards;
-  }
-  #immersiveTransition.play.exit{
-    background:radial-gradient(circle at 50% 38%, rgba(8,8,16,0.97) 0%, rgba(8,8,16,0.6) 42%, transparent 72%);
-    animation: vxExitSweep 1.05s var(--ease) forwards;
-  }
-  @keyframes vxEnterSweep{
-    0%{ opacity:1; clip-path:circle(0% at 50% 38%); }
-    40%{ opacity:0.92; clip-path:circle(55% at 50% 38%); }
-    100%{ opacity:0; clip-path:circle(135% at 50% 38%); }
-  }
-  @keyframes vxExitSweep{
-    0%{ opacity:0; clip-path:circle(135% at 50% 38%); }
-    55%{ opacity:0.55; clip-path:circle(55% at 50% 38%); }
-    100%{ opacity:0.95; clip-path:circle(0% at 50% 38%); }
-  }
-
-  /* legibility: content keeps priority over the immersive visuals */
-  body.immersive-active h1,
-  body.immersive-active h2,
-  body.immersive-active h3,
-  body.immersive-active .headline,
-  body.immersive-active .hero-sub,
-  body.immersive-active .eyebrow,
-  body.immersive-active .manifesto-quote,
-  body.immersive-active .manifesto-body p,
-  body.immersive-active .pillar-desc,
-  body.immersive-active .section-head p{
-    text-shadow:0 1px 22px rgba(0,0,0,0.55), 0 0 2px rgba(0,0,0,0.6);
-    transition:text-shadow .8s ease;
-  }
-  body.immersive-active .signal-row,
-  body.immersive-active .note-card,
-  body.immersive-active .pillar,
-  body.immersive-active .tile,
-  body.immersive-active .editions-caption{
-    background-color:rgba(8,8,16,0.34);
-    backdrop-filter:blur(6px);
-    transition:background-color .8s var(--ease);
-  }
-  body.immersive-active #playerDock{ background:rgba(9,9,17,0.92); }
-
+  #immersiveScrim.active{ opacity:var(--immersive-scrim); }
+  body.immersive-on #playerDock{ border-color:rgba(var(--immersive-accent),0.5); }
+  body.immersive-on .dock-toggle{ color:rgb(var(--immersive-accent)); border-color:rgba(var(--immersive-accent),0.5); }
+  body.immersive-on .dock-bars span{ background:rgb(var(--immersive-accent)); }
+  body.immersive-on .signal-row.playing .signal-bars span{ background:rgb(var(--immersive-accent)); }
   @media (prefers-reduced-motion:reduce){
-    #immersiveScene, #immersiveAura, #immersiveScrim{ transition:opacity .3s linear; }
-    #immersiveTransition.play{ animation:none !important; opacity:0 !important; }
+    #immersiveScene{ transition:opacity .9s ease; clip-path:none !important; }
   }
 
   /* ---------- Signals section ---------- */
@@ -1022,12 +977,9 @@
 <div id="grain"></div>
 <div id="signalGlow"></div>
 
-<canvas id="immersiveScene" aria-hidden="true"></canvas>
-<div id="immersiveAura" aria-hidden="true"></div>
-<div id="immersiveScrim" aria-hidden="true"></div>
-<div id="immersiveTransition" aria-hidden="true"></div>
-
 <canvas id="scene"></canvas>
+<canvas id="immersiveScene" aria-hidden="true"></canvas>
+<div id="immersiveScrim" aria-hidden="true"></div>
 <div class="glow-cursor" id="glowCursor"></div>
 
 <nav id="mainNav">
@@ -2360,18 +2312,14 @@ window.VXData = {
   var currentIndex = -1;
   var isPlaying = false;
 
-  // a track that finishes naturally should leave "playing" state (and the
-  // Immersive Mode it triggers) cleanly, just like a manual pause would
-  audioEl.addEventListener('ended', function(){ stopPlayback(); });
-
   function initAudioGraph(){
     if(audioCtx) return;
     var AC = window.AudioContext || window.webkitAudioContext;
     if(!AC) return;
     audioCtx = new AC();
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 64;
-    analyser.smoothingTimeConstant = 0.82;
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.75;
     freqData = new Uint8Array(analyser.frequencyBinCount);
     try{
       mediaSrcNode = audioCtx.createMediaElementSource(audioEl);
@@ -2445,6 +2393,55 @@ window.VXData = {
     }
   }
 
+  /* ---------- Per-track accent color (sampled from cover art, cached) ----------
+     Feeds Immersive Mode so every Signal gets its own coherent palette
+     instead of one fixed color for the whole feature. Falls back to
+     brand gold whenever a cover is missing, still loading, or blocked. */
+  var GOLD_RGB = [201, 169, 110];
+  var accentCache = {};
+  function deriveAccent(track, cb){
+    if(!track){ cb(GOLD_RGB); return; }
+    if(accentCache[track.id]){ cb(accentCache[track.id]); return; }
+    if(track.accent){
+      var hex = track.accent.replace('#', '');
+      var num = parseInt(hex, 16);
+      if(!isNaN(num) && hex.length === 6){
+        var rgb = [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+        accentCache[track.id] = rgb;
+        cb(rgb);
+        return;
+      }
+    }
+    if(!track.cover){ cb(GOLD_RGB); return; }
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function(){
+      try{
+        var c = document.createElement('canvas');
+        c.width = 16; c.height = 16;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 16, 16);
+        var data = ctx.getImageData(0, 0, 16, 16).data;
+        var r=0,g=0,b=0,n=0;
+        for(var i=0; i<data.length; i+=4){ r+=data[i]; g+=data[i+1]; b+=data[i+2]; n++; }
+        r = r/n; g = g/n; b = b/n;
+        // lift saturation/brightness a touch so muted cover art still
+        // reads as a clear accent once used as an additive glow color
+        var max = Math.max(r,g,b) || 1;
+        var boost = Math.min(1.6, 210 / max);
+        var rgb2 = [
+          Math.min(255, r*boost),
+          Math.min(255, g*boost),
+          Math.min(255, b*boost)
+        ];
+        accentCache[track.id] = rgb2;
+        cb(rgb2);
+      }catch(e){ cb(GOLD_RGB); }
+    };
+    img.onerror = function(){ cb(GOLD_RGB); };
+    img.src = track.cover;
+  }
+
   function playTrack(index){
     var track = SIGNALS[index];
     if(!track) return;
@@ -2454,7 +2451,10 @@ window.VXData = {
     currentIndex = index;
     isPlaying = true;
     updateUIPlaying();
-    if(window.VXImmersive){ window.VXImmersive.enter(track); }
+    document.body.classList.add('immersive-on');
+    deriveAccent(track, function(rgb){
+      if(window.VXImmersive){ window.VXImmersive.enter(rgb); }
+    });
 
     var handled = false;
     function fallback(){
@@ -2484,8 +2484,10 @@ window.VXData = {
     audioEl.pause();
     stopSynthFallback();
     updateUIPlaying();
+    document.body.classList.remove('immersive-on');
     if(window.VXImmersive){ window.VXImmersive.exit(); }
   }
+  audioEl.addEventListener('ended', function(){ stopPlayback(); });
 
   function togglePlay(index){
     if(typeof index !== 'number'){ index = currentIndex >= 0 ? currentIndex : 0; }
@@ -2506,48 +2508,61 @@ window.VXData = {
   /* ---------- Reactive visuals: dock bars, list bars, ambient glow ---------- */
   var smoothedLevel = 0;
   var smoothedBass = 0, smoothedMid = 0, smoothedTreble = 0;
-  var beatEnergyAvg = 0, lastBeatAt = 0;
+  var bassAvg = 0;          // slow running average, used as the beat-detection baseline
+  var lastBeatAt = 0;
+  window.VX_AUDIO.bass = 0;
+  window.VX_AUDIO.mid = 0;
+  window.VX_AUDIO.treble = 0;
+  window.VX_AUDIO.beatStrength = 0;
+  window.VX_AUDIO.isPlaying = false;
+
   function visualTick(){
     requestAnimationFrame(visualTick);
-    var target = 0, bassTarget = 0, midTarget = 0, trebleTarget = 0, beat = false;
+    var target = 0, bassT = 0, midT = 0, trebleT = 0;
+    var now = performance.now();
     if(isPlaying && analyser){
       analyser.getByteFrequencyData(freqData);
-      var sum = 0, n = Math.min(10, freqData.length);
-      for(var i = 0; i < n; i++){ sum += freqData[i]; }
+      var len = freqData.length; // 128 bins at fftSize 256
+      var i, sum = 0, n = Math.min(10, len);
+      for(i = 0; i < n; i++){ sum += freqData[i]; }
       target = (sum / n) / 255;
 
-      // coarse band split of the 32 bins (fftSize 64) — low/mid/high energy,
-      // used by the Immersive Mode visuals (see VXImmersive script below)
-      var bassSum = 0, bassN = Math.min(5, freqData.length);
-      for(var bi = 0; bi < bassN; bi++){ bassSum += freqData[bi]; }
-      bassTarget = (bassSum / bassN) / 255;
+      var bSum = 0, bN = Math.min(4, len);
+      for(i = 0; i < bN; i++){ bSum += freqData[i]; }
+      bassT = (bSum / bN) / 255;
 
-      var midSum = 0, midStart = 5, midEnd = Math.min(17, freqData.length), midN = Math.max(1, midEnd - midStart);
-      for(var mi = midStart; mi < midEnd; mi++){ midSum += freqData[mi]; }
-      midTarget = (midSum / midN) / 255;
+      var mSum = 0, mStart = 4, mEnd = Math.min(48, len);
+      for(i = mStart; i < mEnd; i++){ mSum += freqData[i]; }
+      midT = (mSum / (mEnd - mStart)) / 255;
 
-      var trebSum = 0, trebStart = 17, trebN = Math.max(1, freqData.length - trebStart);
-      for(var ti = trebStart; ti < freqData.length; ti++){ trebSum += freqData[ti]; }
-      trebleTarget = (trebSum / trebN) / 255;
+      var tSum = 0, tStart = mEnd, tEnd = len;
+      for(i = tStart; i < tEnd; i++){ tSum += freqData[i]; }
+      trebleT = (tSum / Math.max(1, tEnd - tStart)) / 255;
 
-      // simple onset/"beat" detection off the bass band: a short-window
-      // spike above its own running average, gated by a small cooldown
-      beatEnergyAvg += (bassTarget - beatEnergyAvg) * 0.06;
-      var now = performance.now();
-      if(bassTarget > beatEnergyAvg * 1.28 + 0.05 && (now - lastBeatAt) > 220){
-        beat = true;
+      // energy-based onset/beat detection on the bass band: a hit is a
+      // bass value that spikes meaningfully above its own slow rolling
+      // average, gated by a short refractory period — reacts to the
+      // actual track rather than following a scripted animation.
+      bassAvg += (bassT - bassAvg) * 0.045;
+      var threshold = bassAvg * 1.32 + 0.06;
+      if(bassT > threshold && (now - lastBeatAt) > 200){
         lastBeatAt = now;
+        window.VX_AUDIO.beatStrength = Math.min(1, (bassT - threshold) / 0.4 + 0.4);
       }
+    } else {
+      bassAvg = 0;
     }
     smoothedLevel += (target - smoothedLevel) * 0.15;
-    smoothedBass += (bassTarget - smoothedBass) * 0.22;
-    smoothedMid += (midTarget - smoothedMid) * 0.18;
-    smoothedTreble += (trebleTarget - smoothedTreble) * 0.18;
+    smoothedBass += (bassT - smoothedBass) * 0.35;   // snappy, for punch
+    smoothedMid += (midT - smoothedMid) * 0.12;
+    smoothedTreble += (trebleT - smoothedTreble) * 0.18;
+    // beatStrength decays on its own between hits
+    window.VX_AUDIO.beatStrength *= 0.9;
     window.VX_AUDIO.level = smoothedLevel;
     window.VX_AUDIO.bass = smoothedBass;
     window.VX_AUDIO.mid = smoothedMid;
     window.VX_AUDIO.treble = smoothedTreble;
-    window.VX_AUDIO.beat = beat;
+    window.VX_AUDIO.isPlaying = isPlaying;
 
     if(!reduceMotion){
       signalGlow.style.opacity = (isPlaying ? smoothedLevel * 0.85 : 0).toFixed(3);
@@ -2572,6 +2587,7 @@ window.VXData = {
     }
   }
   visualTick();
+
 
   /* =========================================================
      NOTES — Field Notes / blog catalog.
@@ -2617,196 +2633,251 @@ window.VXData = {
 
 <script>
 /* =========================================================
-   IMMERSIVE MODE — cinematic transformation synced to the music.
-   Activates automatically whenever a Signal starts playing (hooked
-   from playTrack()/stopPlayback() above) and turns the whole page
-   into a reactive audiovisual environment tuned to that track's own
-   visual identity, driven live by the audio analyser (window.VX_AUDIO
-   — level/bass/mid/treble/beat, updated every frame above).
-
-   Design note: rather than a second full WebGL scene stacked on top of
-   the existing three (hero starfield, Editions carousel, footer mark —
-   which would cost real GPU budget on modest phones), this runs on a
-   single lightweight Canvas2D layer (soft volumetric glow + a drifting
-   particle field) plus two purely CSS layers (a colour "aura" and a
-   contrast scrim). It reads as a full cinematic shift without ever
-   competing with text for attention or frame budget. Everything is
-   inert until body.immersive-active is set, fully stops when the tab
-   is hidden or playback ends, and is skipped for prefers-reduced-motion.
+   IMMERSIVE MODE
+   Turns the whole site into a reactive 3D environment while a
+   Signal plays. Reads bass/mid/treble/beat from window.VX_AUDIO
+   (computed in the audio-engine script above) every frame — every
+   motion here is driven by the actual track, nothing is scripted.
+   Exposes window.VXImmersive.enter(rgb) / .exit(), called by the
+   audio engine on play/stop/track-end.
 ========================================================= */
 (function(){
   "use strict";
 
+  var sceneEl = document.getElementById('immersiveScene');
+  var scrimEl = document.getElementById('immersiveScrim');
+  if(!sceneEl || !scrimEl){ return; }
+
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var LOW_POWER = reduceMotion ||
-    (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
-    window.matchMedia('(max-width: 760px)').matches;
+  var isMobile = window.innerWidth < 720;
+  var GOLD = [201, 169, 110];
 
-  var body = document.body;
-  var canvas = document.getElementById('immersiveScene');
-  var aura = document.getElementById('immersiveAura');
-  var scrim = document.getElementById('immersiveScrim');
-  var transitionEl = document.getElementById('immersiveTransition');
-  if(!canvas || !aura || !scrim || !transitionEl){ return; }
-  var ctx = canvas.getContext('2d');
-
-  var DPR = Math.min(window.devicePixelRatio || 1, LOW_POWER ? 1 : 1.5);
-  var W = 0, H = 0;
-  function resize(){
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width = Math.max(1, Math.floor(W * DPR));
-    canvas.height = Math.max(1, Math.floor(H * DPR));
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  /* ---------- per-track visual identity ----------
-     A track can opt into an explicit "mood" (see data/signals.json)
-     or a numeric "hue" (0–360) to art-direct its own palette. Absent
-     either, the identity is derived deterministically from the track's
-     id, so every Signal still gets a distinct, stable look for free. */
-  var MOODS = {
-    calm:       { hue: 200, speed: 0.55 },
-    warm:       { hue: 32,  speed: 0.85 },
-    dark:       { hue: 258, speed: 0.6  },
-    electric:   { hue: 190, speed: 1.35 },
-    euphoric:   { hue: 328, speed: 1.2  },
-    nightshift: { hue: 244, speed: 0.75 }
-  };
-  var GOLD_HUE = 38;
-
-  function hashHue(str){
-    var h = 0;
-    for(var i = 0; i < str.length; i++){ h = (h * 31 + str.charCodeAt(i)) >>> 0; }
-    return h % 360;
-  }
-  function identityFor(track){
-    if(!track) return { hue: GOLD_HUE, speed: 0.8 };
-    if(track.mood && MOODS[track.mood]) return MOODS[track.mood];
-    if(typeof track.hue === 'number') return { hue: track.hue, speed: 0.85 };
-    return { hue: hashHue(track.id || track.title || 'vorneaux'), speed: 0.85 };
-  }
-  function hsla(h,s,l,a){ return 'hsla(' + h + ',' + s + '%,' + l + '%,' + a + ')'; }
-
-  /* ---------- drifting particle field ---------- */
-  var COUNT = LOW_POWER ? 20 : 54;
-  var particles = [];
-  function seedParticles(hue){
-    particles = [];
-    for(var i = 0; i < COUNT; i++){
-      var brandGold = Math.random() < 0.55; // keep VORNEAUX gold present in every identity
-      particles.push({
-        x: Math.random(), y: Math.random(),
-        z: 0.3 + Math.random() * 0.7,
-        r: 0.6 + Math.random() * 1.7,
-        hue: brandGold ? GOLD_HUE : hue,
-        drift: (Math.random() * 2 - 1) * 0.02,
-        phase: Math.random() * Math.PI * 2
-      });
-    }
+  function setAccentVars(rgb){
+    var r = Math.round(rgb[0]), g = Math.round(rgb[1]), b = Math.round(rgb[2]);
+    document.documentElement.style.setProperty('--immersive-accent', r + ',' + g + ',' + b);
+    // luminance drives the contrast-protection scrim: brighter accents
+    // automatically get a stronger vignette so text never washes out
+    var lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    var scrim = Math.min(0.62, Math.max(0.16, 0.16 + lum * 0.5));
+    document.documentElement.style.setProperty('--immersive-scrim', scrim.toFixed(2));
   }
 
-  var active = false, rafId = null, t0 = null, beatFlash = 0;
-  var identity = { hue: GOLD_HUE, speed: 0.8 };
-
-  function setAuraVars(){
-    var h = identity.hue;
-    document.documentElement.style.setProperty('--vx-hue-a', hsla(GOLD_HUE, 55, 62, 0.5));
-    document.documentElement.style.setProperty('--vx-hue-b', hsla(h, 65, 56, 0.42));
-    document.documentElement.style.setProperty('--vx-hue-c', hsla((h + 40) % 360, 55, 50, 0.28));
+  /* ---- Reduced-motion / no-WebGL path -----------------------------
+     Still "immersive" (accent tint + protective scrim fade in/out) but
+     with none of the cinematic motion — respects vestibular sensitivity
+     and keeps working with no THREE.js dependency at all. */
+  if(reduceMotion || typeof THREE === 'undefined'){
+    window.VXImmersive = {
+      enter: function(rgb){
+        setAccentVars(rgb || GOLD);
+        sceneEl.classList.add('active');
+        scrimEl.classList.add('active');
+      },
+      exit: function(){
+        sceneEl.classList.remove('active');
+        scrimEl.classList.remove('active');
+      }
+    };
+    return;
   }
 
-  function draw(ts){
-    rafId = requestAnimationFrame(draw);
-    if(t0 === null){ t0 = ts; }
-    var t = (ts - t0) / 1000;
-    var a = window.VX_AUDIO || {};
-    var level = a.level || 0, bass = a.bass || 0, treble = a.treble || 0;
-    if(a.beat){ beatFlash = 1; }
-    beatFlash *= 0.90;
+  var renderer = new THREE.WebGLRenderer({ canvas: sceneEl, alpha: true, antialias: !isMobile });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.4 : 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.scale(DPR, DPR);
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x05050a, 0.05);
 
-    // volumetric glow — a few soft light sources anchored to the brand
-    // gold plus the track's own hue, breathing with the bass
-    var blobs = [
-      { x: W * 0.08, y: H * 0.14, hue: GOLD_HUE, base: 0.15 },
-      { x: W * 0.94, y: H * 0.86, hue: identity.hue, base: 0.13 },
-      { x: W * 0.9,  y: H * 0.1,  hue: (identity.hue + 30) % 360, base: 0.1 }
-    ];
-    blobs.forEach(function(b, i){
-      var pulse = 0.7 + bass * 0.9 + Math.sin(t * 0.4 * identity.speed + i) * 0.08;
-      var radius = Math.max(W, H) * (0.30 + 0.10 * pulse);
-      var grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, radius);
-      grad.addColorStop(0, hsla(b.hue, 60, 60, (b.base + bass * 0.14 + beatFlash * 0.08)));
-      grad.addColorStop(1, hsla(b.hue, 60, 40, 0));
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
-    });
+  var CAMERA_REST_Z = 9, CAMERA_FAR_Z = 27;
+  var CAMERA_REST_FOV = 55, CAMERA_FAR_FOV = 24;
+  var camera = new THREE.PerspectiveCamera(CAMERA_FAR_FOV, window.innerWidth / window.innerHeight, 0.1, 150);
+  camera.position.set(0, 0.4, CAMERA_FAR_Z);
 
-    // particle field — parallax motes reacting to treble/beat
-    ctx.globalCompositeOperation = 'lighter';
-    particles.forEach(function(p){
-      var speed = identity.speed * (0.15 + level * 0.5);
-      p.y -= 0.0016 * speed * p.z;
-      p.x += p.drift * 0.02 * p.z + Math.sin(t * 0.3 + p.phase) * 0.0004;
-      if(p.y < -0.05){ p.y = 1.05; p.x = Math.random(); }
-      if(p.x < -0.05){ p.x = 1.05; }
-      if(p.x > 1.05){ p.x = -0.05; }
-      var px = p.x * W, py = p.y * H;
-      var rr = p.r * (1 + treble * 1.4 + beatFlash * 0.8);
-      var op = Math.min(0.25 + level * 0.5 + p.z * 0.15, 0.85);
-      ctx.beginPath();
-      ctx.arc(px, py, rr, 0, Math.PI * 2);
-      ctx.fillStyle = hsla(p.hue, 70, 68, op);
-      ctx.fill();
-    });
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.restore();
+  var accentColor = new THREE.Color(GOLD[0] / 255, GOLD[1] / 255, GOLD[2] / 255);
+  scene.add(new THREE.AmbientLight(0x2a2a35, 0.9));
+  var keyLight = new THREE.PointLight(accentColor.getHex(), 1.6, 44, 2);
+  keyLight.position.set(0, 3, 2);
+  scene.add(keyLight);
 
-    // aura opacity is the only per-frame CSS write — cheap (compositor
-    // only, no layout/paint) and gives the whole page its "breathing" feel
-    var auraOpacity = Math.min(0.30 + level * 0.30 + beatFlash * 0.18, 0.68);
-    document.documentElement.style.setProperty('--vx-aura-opacity', auraOpacity.toFixed(3));
+  /* ---- soft radial glow texture, reused for particles/rays/floor ---- */
+  function makeGlowTexture(){
+    var c = document.createElement('canvas');
+    c.width = c.height = 128;
+    var ctx = c.getContext('2d');
+    var g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.4, 'rgba(255,255,255,0.7)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
   }
+  var glowTex = makeGlowTexture();
 
-  function startLoop(){ if(rafId === null){ t0 = null; rafId = requestAnimationFrame(draw); } }
-  function stopLoop(){ if(rafId !== null){ cancelAnimationFrame(rafId); rafId = null; } }
-
-  document.addEventListener('visibilitychange', function(){
-    if(document.hidden){ stopLoop(); }
-    else if(active){ startLoop(); }
+  /* ---- particle field: a full volumetric shell around the camera ---- */
+  var PARTICLE_COUNT = isMobile ? 320 : 950;
+  var pGeo = new THREE.BufferGeometry();
+  var pPos = new Float32Array(PARTICLE_COUNT * 3);
+  var pBase = new Float32Array(PARTICLE_COUNT * 3);
+  var pPhase = new Float32Array(PARTICLE_COUNT);
+  var pSpeed = new Float32Array(PARTICLE_COUNT);
+  for(var i = 0; i < PARTICLE_COUNT; i++){
+    var radius = 4 + Math.random() * 11;
+    var theta = Math.random() * Math.PI * 2;
+    var phi = Math.acos((Math.random() * 2) - 1);
+    var x = radius * Math.sin(phi) * Math.cos(theta);
+    var y = radius * Math.cos(phi) * 0.6 - 1.5;
+    var z = radius * Math.sin(phi) * Math.sin(theta) - 4;
+    pBase[i*3] = x; pBase[i*3+1] = y; pBase[i*3+2] = z;
+    pPos[i*3] = x; pPos[i*3+1] = y; pPos[i*3+2] = z;
+    pPhase[i] = Math.random() * Math.PI * 2;
+    pSpeed[i] = 0.15 + Math.random() * 0.3;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  var pMat = new THREE.PointsMaterial({
+    map: glowTex, color: accentColor, size: isMobile ? 0.16 : 0.13,
+    transparent: true, opacity: 0.85, depthWrite: false,
+    blending: THREE.AdditiveBlending, sizeAttenuation: true
   });
+  var particles = new THREE.Points(pGeo, pMat);
+  scene.add(particles);
 
-  function playTransition(kind){
-    if(reduceMotion){ return; }
-    transitionEl.classList.remove('play', 'enter', 'exit');
-    void transitionEl.offsetWidth; // restart the CSS animation
-    transitionEl.classList.add('play', kind);
-    setTimeout(function(){ transitionEl.classList.remove('play', 'enter', 'exit'); }, 1150);
+  /* ---- volumetric god-rays: a slow-rotating fan of soft planes ---- */
+  var rayGroup = new THREE.Group();
+  var RAY_COUNT = 4;
+  var rays = [];
+  for(var r = 0; r < RAY_COUNT; r++){
+    var rayGeo = new THREE.PlaneGeometry(3.2, 20);
+    var rayMat = new THREE.MeshBasicMaterial({
+      map: glowTex, color: accentColor, transparent: true, opacity: 0.12,
+      depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
+    });
+    var mesh = new THREE.Mesh(rayGeo, rayMat);
+    var ang = (r / RAY_COUNT) * Math.PI * 2;
+    mesh.position.set(Math.cos(ang) * 3, 2, Math.sin(ang) * 3 - 6);
+    mesh.rotation.z = ang;
+    mesh.rotation.x = -0.3;
+    rayGroup.add(mesh);
+    rays.push(mesh);
+  }
+  scene.add(rayGroup);
+
+  /* ---- floor glow: gives the scene a horizon / sense of ground ---- */
+  var floorMat = new THREE.MeshBasicMaterial({
+    map: glowTex, color: accentColor, transparent: true, opacity: 0.14,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  var floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, -5, -4);
+  scene.add(floor);
+
+  function setAccent(rgb){
+    accentColor.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
+    pMat.color.copy(accentColor);
+    rays.forEach(function(m){ m.material.color.copy(accentColor); });
+    floorMat.color.copy(accentColor);
+    keyLight.color.copy(accentColor);
+    setAccentVars(rgb);
   }
 
-  window.VXImmersive = {
-    enter: function(track){
-      identity = identityFor(track);
-      setAuraVars();
-      seedParticles(identity.hue);
-      active = true;
-      body.classList.add('immersive-active');
-      playTransition('enter');
-      startLoop();
-    },
-    exit: function(){
-      active = false;
-      body.classList.remove('immersive-active');
-      playTransition('exit');
-      setTimeout(function(){
-        if(!active){ stopLoop(); ctx.clearRect(0, 0, canvas.width, canvas.height); }
-      }, 1400);
+  /* ---- state machine driving the cinematic build-up / dissolve ---- */
+  var state = 'idle'; // idle | entering | active | exiting
+  var transitionStart = 0;
+  var ENTER_MS = 1300, EXIT_MS = 950;
+  function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+  function easeInCubic(t){ return t * t * t; }
+
+  function enter(rgb){
+    setAccent(rgb || GOLD);
+    if(state === 'idle' || state === 'exiting'){
+      transitionStart = performance.now();
+      state = 'entering';
+      sceneEl.classList.add('active');
+      scrimEl.classList.add('active');
     }
-  };
+    // switching tracks while already in: crossfade the accent color
+    // above is enough — no need to replay the whole entrance each time
+  }
+  function exit(){
+    if(state === 'active' || state === 'entering'){
+      transitionStart = performance.now();
+      state = 'exiting';
+    }
+  }
+  window.VXImmersive = { enter: enter, exit: exit };
+
+  /* ---- render loop ---- */
+  var clock = new THREE.Clock();
+  var beatPunch = 0;
+
+  function tick(){
+    requestAnimationFrame(tick);
+    if(document.hidden || state === 'idle'){ clock.getDelta(); return; }
+    var dt = Math.min(clock.getDelta(), 0.1);
+    var t = clock.elapsedTime;
+
+    var progress = 1;
+    if(state === 'entering'){
+      var p = Math.min(1, (performance.now() - transitionStart) / ENTER_MS);
+      progress = easeOutCubic(p);
+      sceneEl.style.clipPath = 'inset(' + (100 * (1 - progress)).toFixed(2) + '% 0 0 0)';
+      if(p >= 1){ state = 'active'; }
+    } else if(state === 'exiting'){
+      var p2 = Math.min(1, (performance.now() - transitionStart) / EXIT_MS);
+      progress = 1 - easeInCubic(p2);
+      sceneEl.style.clipPath = 'inset(' + (100 * (1 - progress)).toFixed(2) + '% 0 0 0)';
+      if(p2 >= 1){
+        state = 'idle';
+        sceneEl.classList.remove('active');
+        scrimEl.classList.remove('active');
+        sceneEl.style.clipPath = 'inset(100% 0 0 0)';
+        return;
+      }
+    }
+
+    var audio = window.VX_AUDIO || {};
+    var bass = audio.bass || 0, mid = audio.mid || 0, treble = audio.treble || 0;
+    beatPunch += ((audio.beatStrength || 0) - beatPunch) * 0.4;
+
+    /* camera: flies in/out synced with the reveal, idle drift, beat punch */
+    camera.position.z = CAMERA_FAR_Z + (CAMERA_REST_Z - CAMERA_FAR_Z) * progress;
+    camera.position.x = Math.sin(t * 0.12) * 0.4;
+    camera.position.y = 0.4 + Math.sin(t * 0.09) * 0.2;
+    camera.fov = (CAMERA_FAR_FOV + (CAMERA_REST_FOV - CAMERA_FAR_FOV) * progress) - beatPunch * 2.2;
+    camera.lookAt(0, -0.4, -4);
+    camera.updateProjectionMatrix();
+
+    /* particles: ambient drift + real outward pulse on bass/beat */
+    var pos = pGeo.attributes.position.array;
+    var push = 1 + bass * 0.12 + beatPunch * 0.35;
+    for(var i = 0; i < PARTICLE_COUNT; i++){
+      var ix = i * 3;
+      var drift = Math.sin(t * pSpeed[i] + pPhase[i]) * (0.4 + treble * 0.6);
+      pos[ix]   = pBase[ix]   * push + Math.cos(t * 0.2 + pPhase[i]) * 0.15;
+      pos[ix+1] = pBase[ix+1] * push + drift * 0.25;
+      pos[ix+2] = pBase[ix+2] * push;
+    }
+    pGeo.attributes.position.needsUpdate = true;
+    pMat.opacity = (0.55 + mid * 0.35 + beatPunch * 0.25) * progress;
+    pMat.size = (isMobile ? 0.15 : 0.12) + treble * 0.09;
+
+    rayGroup.rotation.y = t * 0.03;
+    rays.forEach(function(m){ m.material.opacity = (0.08 + mid * 0.22 + beatPunch * 0.18) * progress; });
+
+    floorMat.opacity = (0.1 + bass * 0.18 + beatPunch * 0.2) * progress;
+    floor.scale.set(1 + beatPunch * 0.05, 1, 1 + beatPunch * 0.05);
+
+    renderer.render(scene, camera);
+  }
+  tick();
+
+  window.addEventListener('resize', function(){
+    isMobile = window.innerWidth < 720;
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }, { passive: true });
 })();
 </script>
 </body>
