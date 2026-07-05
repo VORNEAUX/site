@@ -2923,16 +2923,15 @@ window.VXData = {
         depthWrite: false, blending: THREE.AdditiveBlending
       });
       var core = new THREE.Sprite(coreMat);
-      core.scale.set(4, 4, 1);
+      core.scale.set(2, 2, 1);
       lightCores.push(core);
       scene3.add(core);
     }
 
-    var rayGeo = new THREE.PlaneGeometry(3.6, 3.6, 1, 1);
+    var rayGeo = new THREE.PlaneGeometry(1.7, 1.7, 1, 1);
     for(var ri = 0; ri < RAY_COUNT[tier]; ri++){
       var rayMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff, emissive: 0xffffff, emissiveMap: glowTex,
-        alphaMap: glowTex, transparent: true, opacity: 0.14,
+        color: 0xffffff, alphaMap: glowTex, transparent: true, opacity: 0.12,
         roughness: 1, metalness: 0, side: THREE.DoubleSide,
         depthWrite: false, blending: THREE.AdditiveBlending
       });
@@ -3060,36 +3059,41 @@ window.VXData = {
       camera3.lookAt(0, 0, -4);
 
       // real lights, each bound to a band-group, sweeping through space —
-      // pushed brighter and closer to camera so they read as unmistakable,
-      // colored light sources rather than a faint tint on distant geometry.
+      // sized and paced to read as small, precise light sources that
+      // visibly pulse with the beat rather than a broad wash.
       lights.forEach(function(light, li){
         var g = light.userData.group;
         var e = g === 'bass' ? audio.bass : (g === 'mid' ? audio.mid : audio.treble);
         var ph = light.userData.phase + t * (0.25 + (e || 0) * 0.6);
         light.position.set(Math.sin(ph) * 6, Math.cos(ph * 0.8) * 3.5, -2 + Math.sin(ph * 0.5) * 3);
         var hue2 = (g === 'bass' ? HUE.bass : (g === 'mid' ? HUE.mid : HUE.treble)) + currentWorld.hueOffset;
-        var lc = hueToRGB(hue2, 0.85, 0.62);
+        var lc = hueToRGB(hue2, 0.85, 0.6);
         light.color = lc;
-        light.intensity = (0.55 + (e || 0) * 2.6 + beat * 1.4 + flashLight * 2.6) * (0.45 + energy);
+        light.intensity = (0.35 + (e || 0) * 1.8 + beat * 1.2 + flashLight * 2.0) * (0.45 + energy);
 
         var core = lightCores[li];
         if(core){
           core.position.copy(light.position);
           core.material.color.copy(lc);
-          var coreEnergy = Math.min(1, 0.16 + (e || 0) * 0.95 + beat * 0.5 + flashLight * 0.75);
+          var coreEnergy = Math.min(1, 0.1 + (e || 0) * 0.85 + beat * 0.6 + flashLight * 0.7);
           core.material.opacity = coreEnergy * intensity;
-          var coreScale = 3 + coreEnergy * 5.5;
+          // pulse: base breathing tied to the band's own energy, plus a
+          // sharp momentary kick on the beat itself
+          var beatKick = 1 + beat * 0.55;
+          var coreScale = (1 + coreEnergy * 1.8) * beatKick;
           core.scale.set(coreScale, coreScale, 1);
         }
       });
-      ambient.intensity = 0.3 + level * 0.4 + flashLight * 0.5;
+      ambient.intensity = 0.28 + level * 0.32 + flashLight * 0.4;
 
       rayMeshes.forEach(function(mesh, ri){
         var g = mesh.userData.group;
         var e = g === 'bass' ? audio.bass : (g === 'mid' ? audio.mid : audio.treble);
         mesh.rotation.z += dt * 0.05 * currentWorld.rotationDir;
         mesh.position.set(Math.sin(t * 0.09 + ri) * 3.8, Math.cos(t * 0.07 + ri) * 2.2, -6 - ri * 0.4);
-        mesh.material.opacity = (0.1 + (e || 0) * 0.34 + flashLight * 0.4) * intensity;
+        mesh.material.opacity = (0.08 + (e || 0) * 0.26 + flashLight * 0.3) * intensity;
+        var rayScale = 1 + (e || 0) * 0.5 + beat * 0.3;
+        mesh.scale.set(rayScale, rayScale, 1);
       });
     }
 
