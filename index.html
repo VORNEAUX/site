@@ -2696,8 +2696,6 @@ window.VXData = {
   function setAccentVars(rgb){
     var r = Math.round(rgb[0]), g = Math.round(rgb[1]), b = Math.round(rgb[2]);
     document.documentElement.style.setProperty('--immersive-accent', r + ',' + g + ',' + b);
-    // luminance drives the contrast-protection scrim: brighter accents
-    // automatically get a stronger vignette so text never washes out
     var lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
     var scrim = Math.min(0.62, Math.max(0.16, 0.16 + lum * 0.5));
     document.documentElement.style.setProperty('--immersive-scrim', scrim.toFixed(2));
@@ -2737,11 +2735,8 @@ window.VXData = {
 
   var accentColor = new THREE.Color(GOLD[0] / 255, GOLD[1] / 255, GOLD[2] / 255);
 
-  /* ---- lit backdrop: a huge inverted sphere enclosing the whole scene.
-     It has no visible texture of its own — its only job is to *catch*
-     the two roaming point lights below, so the general atmosphere and
-     ambient color of the environment keeps shifting on its own as the
-     lights wander, the way a lit cyclorama does behind a stage. ---- */
+  /* ---- lit backdrop: catches the roaming point lights so the general
+     atmosphere keeps shifting as they move, like a lit cyclorama. ---- */
   var backdropBase = new THREE.Color(0x07070d);
   var backdropMat = new THREE.MeshStandardMaterial({
     color: backdropBase.clone(), roughness: 1, metalness: 0, side: THREE.BackSide, fog: true
@@ -2759,8 +2754,7 @@ window.VXData = {
     scene.add(light);
     roamLights.push({
       mesh: light,
-      target: new THREE.Vector3(light.position.x, light.position.y, light.position.z),
-      nextRetarget: 0
+      target: new THREE.Vector3(light.position.x, light.position.y, light.position.z)
     });
   }
   function pickRoamTarget(){
@@ -2786,13 +2780,11 @@ window.VXData = {
   }
   var glowTex = makeGlowTexture();
 
-  /* ---- particle field: a full volumetric shell around the camera.
-     pBase is each particle's resting position once the world has fully
-     formed — and, crucially, it is ALSO where each particle starts,
-     because these are meant to read as the ambient particles "already
-     in the background". The entrance never teleports them from a
-     scripted point: it pulls them, from exactly where they already
-     are, in toward the portal ring. ---- */
+  /* ---- particle field: pBase is the resting position AND the starting
+     position — these are the particles "already in the background".
+     pRing is the portal-ring waypoint they converge toward before the
+     detonation. Nothing about this convergence runs on a clock; see
+     the audio-driven gather logic in tick(). ---- */
   var PARTICLE_COUNT = isMobile ? 320 : 950;
   var pGeo = new THREE.BufferGeometry();
   var pPos = new Float32Array(PARTICLE_COUNT * 3);
@@ -2821,11 +2813,10 @@ window.VXData = {
   var particles = new THREE.Points(pGeo, pMat);
   scene.add(particles);
 
-  /* ---- the portal ring: the single cinematic waypoint every particle
-     passes through. It's a real torus of energy (not just a particle
-     cluster) so it reads as a genuine 3D structure — the "portale di
-     accesso all'universo della canzone" — plus a soft glowing disc at
-     its core to sell the sense of a portal, not just a hoop. ---- */
+  /* ---- the portal ring: a real 3D torus of energy, not just a
+     particle cluster — the "portale di accesso all'universo della
+     canzone". Its formation amount is a live audio-driven value
+     (gatherAmount, computed in tick()), never a timer. ---- */
   var RING_CENTER = new THREE.Vector3(0, 0.2, -2.4);
   var RING_MAIN_R = isMobile ? 2.0 : 2.7;
   var RING_TUBE_R = isMobile ? 0.4 : 0.52;
@@ -2833,7 +2824,7 @@ window.VXData = {
   function buildRingTargets(){
     for(var i = 0; i < PARTICLE_COUNT; i++){
       var th = (i / PARTICLE_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.05;
-      var weave = Math.sin(th * 6 + i * 0.7) * 0.5 + 0.5; // energetic, non-uniform tube thickness
+      var weave = Math.sin(th * 6 + i * 0.7) * 0.5 + 0.5;
       var tubeR = RING_TUBE_R * (0.35 + weave * 0.75);
       var ph = Math.random() * Math.PI * 2;
       var rx = (RING_MAIN_R + tubeR * Math.cos(ph)) * Math.cos(th);
@@ -2870,10 +2861,8 @@ window.VXData = {
   portalDisc.position.copy(RING_CENTER);
   scene.add(portalDisc);
 
-  /* ---- blast debris: a sparser cloud that erupts from the ring itself
-     the instant it detonates and burns all the way out past the resting
-     shell — the visible shockwave sparks of the explosion, distinct from
-     the particles that settle back into the ambient field. ---- */
+  /* ---- blast debris: erupts from the ring itself the instant it
+     detonates and burns out past the resting shell. ---- */
   var DEBRIS_COUNT = isMobile ? 220 : 520;
   var debrisStart = new Float32Array(DEBRIS_COUNT * 3);
   var debrisTarget = new Float32Array(DEBRIS_COUNT * 3);
@@ -2890,8 +2879,6 @@ window.VXData = {
 
   function reseedDebris(){
     for(var i = 0; i < DEBRIS_COUNT; i++){
-      // sampled straight off the ring geometry — sparks fly out of the
-      // torus itself, not an arbitrary point
       var src = Math.floor(Math.random() * PARTICLE_COUNT) * 3;
       debrisStart[i*3]   = pRing[src]   + (Math.random() - 0.5) * 0.2;
       debrisStart[i*3+1] = pRing[src+1] + (Math.random() - 0.5) * 0.2;
@@ -2906,14 +2893,22 @@ window.VXData = {
   }
   reseedDebris();
 
-  /* ---- roaming light beams: shafts that actually travel through the
-     3D scene along a curved (quadratic-bezier) path for the duration
-     of their life, rather than sitting in one spot. They never run on
-     their own clock — the render loop below only ever wakes, re-routes,
-     or fast-fades them in direct response to onset/level readings off
-     window.VX_AUDIO, so every appearance, disappearance and course
-     change reads as caused by the music, not by a looping animation. ---- */
-  var BEAM_COUNT = isMobile ? 5 : 9;
+  /* =========================================================
+     LIGHT BEAMS — the core of the request.
+     Exactly 2–3 beams exist for the entire track. They are never
+     spawned or destroyed; they persist and are ALWAYS moving, even
+     between beats (a small continuous wander so nothing ever reads
+     as frozen). But every meaningful event — a change of direction,
+     a burst of intensity, a new sweep across the scene — happens
+     exactly on a detected beat, in the same frame it's detected, and
+     travels at a duration derived from the live tempo (the gap
+     between the last beats), so fast passages get fast reactions and
+     slow ones get slow ones. A drop (a big jump in the audio's rolling
+     level) forces every beam to react at once. In quiet passages they
+     dim toward nothing without being destroyed, ready to snap back the
+     instant the music returns.
+  ========================================================== */
+  var BEAM_COUNT = isMobile ? 2 : 3;
   var beams = [];
   var beamUpAxis = new THREE.Vector3(0, 1, 0);
   function randomScenePoint(){
@@ -2922,9 +2917,6 @@ window.VXData = {
       (Math.random() - 0.3) * 11,
       (Math.random() - 0.5) * 20 - 5
     );
-  }
-  function randomBeamScale(){
-    return new THREE.Vector3(0.6 + Math.random() * 0.7, 0.55 + Math.random() * 0.85, 1);
   }
   function quadBezier(out, p0, p1, p2, t){
     var it = 1 - t;
@@ -2939,32 +2931,6 @@ window.VXData = {
     out.z = 2*(1-t)*(p1.z-p0.z) + 2*t*(p2.z-p1.z);
     return out;
   }
-  function activateBeam(b, chained){
-    var start = (chained && b.active) ? b.mesh.position.clone() : randomScenePoint();
-    var end = randomScenePoint();
-    // control point offset laterally from the start/end midpoint so the
-    // travel reads as a sweeping arc through the space, not a straight line
-    var mid = start.clone().add(end).multiplyScalar(0.5);
-    var lateral = new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)).multiplyScalar(6 + Math.random()*5);
-    var control = mid.add(lateral);
-    b.start.copy(start);
-    b.control.copy(control);
-    b.end.copy(end);
-    var sc = randomBeamScale();
-    b.scaleTarget.copy(sc);
-    if(!chained){ b.mesh.scale.copy(sc); }
-    b.twistAngle = Math.random() * Math.PI * 2;
-    b.maxLife = 2.6 + Math.random() * 3.4;
-    b.life = 0;
-    b.peak = 0.55 + Math.random() * 0.5;
-    b.active = true;
-  }
-  function retargetBeam(b){
-    // re-routes an already-active beam onto a fresh travel leg, starting
-    // exactly from wherever it currently is — the beam keeps travelling,
-    // it never jumps
-    activateBeam(b, true);
-  }
   for(var bi = 0; bi < BEAM_COUNT; bi++){
     var beamGeo = new THREE.PlaneGeometry(2.6, 16);
     var beamMat = new THREE.MeshBasicMaterial({
@@ -2973,16 +2939,43 @@ window.VXData = {
     });
     var beamMesh = new THREE.Mesh(beamGeo, beamMat);
     scene.add(beamMesh);
+    var startPt = randomScenePoint();
     beams.push({
-      mesh: beamMesh, active: false, life: 0, maxLife: 4, peak: 0.7, twistAngle: 0,
-      start: new THREE.Vector3(), control: new THREE.Vector3(), end: new THREE.Vector3(),
-      scaleTarget: new THREE.Vector3(1, 1, 1)
+      mesh: beamMesh,
+      from: startPt.clone(), control: startPt.clone(), to: startPt.clone(),
+      travelStart: 0, travelDur: 500,
+      punch: 0, twistAngle: Math.random() * Math.PI * 2,
+      idlePhase: Math.random() * 10, seed: Math.random() * 100
     });
   }
   var beamPosTmp = new THREE.Vector3();
   var beamTangentTmp = new THREE.Vector3();
   var beamQuatTmp = new THREE.Quaternion();
   var beamTwistQuatTmp = new THREE.Quaternion();
+
+  function beamPositionNow(b, nowMs){
+    var tt = b.travelDur > 0 ? Math.min(1, (nowMs - b.travelStart) / b.travelDur) : 1;
+    return quadBezier(new THREE.Vector3(), b.from, b.control, b.to, easeInOutCubic(tt));
+  }
+
+  // Fires exactly on a beat: the beam picks up wherever it currently is
+  // (no teleport) and sets off on a brand new sweep, timed to arrive
+  // around the next expected beat, its intensity set by how hard this
+  // beat actually hit.
+  function triggerBeamReaction(b, punch, now){
+    var cur = beamPositionNow(b, now);
+    b.from.copy(cur);
+    var dest = randomScenePoint();
+    var mid = b.from.clone().add(dest).multiplyScalar(0.5);
+    var lateral = new THREE.Vector3(
+      (Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)
+    ).multiplyScalar(4 + punch * 9);
+    b.control.copy(mid.add(lateral));
+    b.to.copy(dest);
+    b.travelStart = now;
+    b.travelDur = beatIntervalEstimate;
+    b.punch = Math.max(b.punch * 0.4, punch); // a fresh hit always at least tops up the flash
+  }
 
   /* ---- floor glow: gives the scene a horizon / sense of ground ---- */
   var floorMat = new THREE.MeshBasicMaterial({
@@ -3008,21 +3001,23 @@ window.VXData = {
     setAccentVars(rgb);
   }
 
-  /* ---- state machine driving the cinematic build-up / dissolve ----
-     entering has three beats, always in this order:
-       gather -> the ambient particles are pulled inward, converging
-                 into the ring (mirrors the V-monogram formation)
-       hold   -> the ring stands fully formed for a breath, charging
-       blast  -> the ring detonates: particles + debris fling outward
-                 through the whole scene, the site itself is revealed
-     Only after "blast" completes does the ambient/reactive loop
-     (roaming lights, beams) take over. ---- */
+  /* ---- state machine ----
+     idle -> entering (gather, audio-driven, no fixed length) -> ignites
+     on the track's own first strong hit -> blast (a short, physically
+     necessary shockwave) -> active (the whole scenography now runs
+     entirely off the live audio reactive values) -> exiting. ---- */
   var state = 'idle'; // idle | entering | active | exiting
-  var subPhase = 'gather'; // gather | hold | blast  (only meaningful while entering)
-  var transitionStart = 0;
-  var GATHER_MS = 1500, HOLD_MS = 420, BLAST_MS = 1050;
+  var ignited = false;
+  var gatherAmount = 0;
+  var enterStartAt = 0;
+  var blastStart = 0;
+  var blastPunch = 0.6;
+  var BLAST_MS = 700;   // the physical duration of the shockwave itself, not a waiting period
+  var ENTER_MAX_WAIT_MS = 7000; // safety net only, in case a track opens on total silence
   var EXIT_MS = 1000;
-  function clamp01(v){ return v < 0 ? 0 : (v > 1 ? 1 : v); }
+
+  function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+  function clamp01(v){ return clamp(v, 0, 1); }
   function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
   function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
   function easeInCubic(t){ return t * t * t; }
@@ -3030,28 +3025,27 @@ window.VXData = {
   function lerp(a, b, t){ return a + (b - a) * t; }
 
   var flashEl = document.getElementById('immersiveFlash');
-  var blastIgnited = false; // guards the one-time flash + beam ignition at the moment of detonation
 
   function enter(rgb){
     setAccent(rgb || GOLD);
     if(state === 'idle' || state === 'exiting'){
-      transitionStart = performance.now();
       state = 'entering';
-      subPhase = 'gather';
-      blastIgnited = false;
+      ignited = false;
+      gatherAmount = 0;
+      enterStartAt = performance.now();
       buildRingTargets();
       reseedDebris();
       debrisPoints.visible = true;
       sceneEl.style.clipPath = 'circle(0% at 50% 50%)';
       sceneEl.classList.add('active');
       scrimEl.classList.add('active');
-      // reset the music-driven beam choreography for a clean ignition
-      beams.forEach(function(b){ b.active = false; b.mesh.material.opacity = 0; });
+      beams.forEach(function(b){ b.punch = 0; b.mesh.material.opacity = 0; });
       prevBeatStrength = 0; levelFast = 0; levelSlow = 0;
-      lastBeamSpawnAt = 0; lastShiftAt = 0;
+      lastGlobalBeatAt = 0; beatIntervalEstimate = 500; beatRoundRobin = 0;
+      lastShiftAt = 0;
     }
     // switching tracks while already in: the accent crossfade above is
-    // enough — no need to replay the whole gather/ring/blast sequence
+    // enough — the world stays formed, no replay of gather/blast
   }
   function exit(){
     if(state === 'active' || state === 'entering'){
@@ -3064,11 +3058,12 @@ window.VXData = {
   /* ---- render loop ---- */
   var clock = new THREE.Clock();
   var beatPunch = 0;
-  var debrisFade = 0; // 1 right as the blast happens, eases back to 0
+  var debrisFade = 0;
+  var transitionStart = 0;
 
-  /* music-choreography trackers for the light beams */
   var prevBeatStrength = 0, levelFast = 0, levelSlow = 0;
-  var lastBeamSpawnAt = 0, lastShiftAt = 0;
+  var lastGlobalBeatAt = 0, beatIntervalEstimate = 500;
+  var beatRoundRobin = 0, lastShiftAt = 0;
 
   function tick(){
     requestAnimationFrame(tick);
@@ -3077,158 +3072,131 @@ window.VXData = {
     var t = clock.elapsedTime;
     var now = performance.now();
 
-    var progress = 1;        // overall reveal/arrival envelope for ambient/reactive systems
+    var audio = window.VX_AUDIO || {};
+    var bass = audio.bass || 0, mid = audio.mid || 0, treble = audio.treble || 0;
+    var level = audio.level || 0;
+    var beatStrength = audio.beatStrength || 0;
+    var beatEdge = beatStrength > prevBeatStrength + 0.05 && beatStrength > 0.32;
+    prevBeatStrength = beatStrength;
+    levelFast += (level - levelFast) * 0.18;
+    levelSlow += (level - levelSlow) * 0.015;
+    var sectionShift = Math.abs(levelFast - levelSlow);
+    var isQuiet = levelSlow < 0.055;
+    beatPunch += (beatStrength - beatPunch) * 0.4;
+    document.documentElement.style.setProperty('--immersive-beat', beatPunch.toFixed(3));
+
+    var pos = pGeo.attributes.position.array;
+    var progress = 1;
     var camZ = CAMERA_REST_Z, camFov = CAMERA_REST_FOV, camTarget = CAMERA_REST_TARGET;
     var entryKick = 0;
-    var pos = pGeo.attributes.position.array;
 
-    if(state === 'entering'){
-      var elapsed = now - transitionStart;
+    if(state === 'entering' && !ignited){
+      /* ---- GATHER: driven entirely by the track's live energy —
+         quiet intros creep in slowly, energetic ones pull the ring
+         together fast. No clock decides this, the meter does. The
+         ring detonates the instant a real onset lands (or, as a
+         safety net only, once the field has fully converged or too
+         long has passed with total silence). ---- */
+      var accel = 0.1 + level * 0.9 + mid * 0.55 + bass * 0.35;
+      gatherAmount = Math.min(1, gatherAmount + dt * accel);
+      var gEase = easeInOutCubic(gatherAmount);
+      for(var i = 0; i < PARTICLE_COUNT; i++){
+        var jx = i * 3;
+        pos[jx]   = lerp(pBase[jx],   pRing[jx],   gEase);
+        pos[jx+1] = lerp(pBase[jx+1], pRing[jx+1], gEase);
+        pos[jx+2] = lerp(pBase[jx+2], pRing[jx+2], gEase);
+      }
+      pGeo.attributes.position.needsUpdate = true;
+      pMat.opacity = 0.55 + gEase * 0.35 + beatPunch * 0.1;
+      pMat.size = (isMobile ? 0.15 : 0.12) + gEase * 0.05;
 
-      if(elapsed < GATHER_MS){
-        /* ---- GATHER: particles already in the background converge
-           toward the ring, exactly like the hero's V-monogram forms —
-           nothing explodes yet, nothing is revealed yet. ---- */
-        subPhase = 'gather';
-        var gT = easeInOutCubic(clamp01(elapsed / GATHER_MS));
-        for(var i = 0; i < PARTICLE_COUNT; i++){
-          var jx = i * 3;
-          pos[jx]   = lerp(pBase[jx],   pRing[jx],   gT);
-          pos[jx+1] = lerp(pBase[jx+1], pRing[jx+1], gT);
-          pos[jx+2] = lerp(pBase[jx+2], pRing[jx+2], gT);
-        }
-        pMat.opacity = 0.55 + gT * 0.35;
-        pMat.size = (isMobile ? 0.15 : 0.12) + gT * 0.05;
+      ringMat.opacity = gEase * 0.85;
+      ringMat2.opacity = gEase * 0.5;
+      portalMat.opacity = Math.pow(gEase, 1.6) * 0.55 + beatPunch * 0.2;
+      ringMesh.rotation.z += dt * (0.25 + level * 0.8);
+      ringMeshInner.rotation.z -= dt * (0.35 + level * 1.1);
+      ringMesh.scale.setScalar(1 + beatPunch * 0.03);
 
-        ringMat.opacity = gT * 0.85;
-        ringMat2.opacity = gT * 0.5;
-        portalMat.opacity = Math.pow(gT, 1.6) * 0.55;
-        ringMesh.rotation.z = gT * 0.6;
-        ringMeshInner.rotation.z = -gT * 0.9;
+      var peek = gEase * 0.14;
+      sceneEl.style.clipPath = 'circle(' + (peek * 100).toFixed(2) + '% at 50% 50%)';
+      if(flashEl){ flashEl.style.opacity = '0'; }
 
-        debrisMat.opacity = 0;
+      camZ = CAMERA_FAR_Z + (CAMERA_RING_Z - CAMERA_FAR_Z) * gEase;
+      camFov = CAMERA_FAR_FOV + (CAMERA_RING_FOV - CAMERA_FAR_FOV) * gEase;
+      camTarget = RING_CENTER;
+      progress = 0;
 
-        // a small keyhole opens just enough to glimpse the ring forming
-        var peek = gT * 0.14;
-        sceneEl.style.clipPath = 'circle(' + (peek * 100).toFixed(2) + '% at 50% 50%)';
-        if(flashEl){ flashEl.style.opacity = '0'; }
-
-        // camera drifts slowly in toward the ring, framing the formation
-        camZ = CAMERA_FAR_Z + (CAMERA_RING_Z - CAMERA_FAR_Z) * gT;
-        camFov = CAMERA_FAR_FOV + (CAMERA_RING_FOV - CAMERA_FAR_FOV) * gT;
-        camTarget = RING_CENTER;
-        progress = 0;
-
-      } else if(elapsed < GATHER_MS + HOLD_MS){
-        /* ---- HOLD: the ring stands fully formed, charging — a breath
-           of tension before the detonation. ---- */
-        subPhase = 'hold';
-        var hT = clamp01((elapsed - GATHER_MS) / HOLD_MS);
-        var audioHold = window.VX_AUDIO || {};
-        var pulse = Math.sin(hT * Math.PI * 3) * 0.5 + 0.5;
-        pulse = clamp01(pulse * 0.6 + (audioHold.bass || 0) * 0.7 + (audioHold.level || 0) * 0.3);
-        for(var i2 = 0; i2 < PARTICLE_COUNT; i2++){
-          var jx2 = i2 * 3;
-          var wob = Math.sin(t * 3 + i2) * 0.02 * pulse;
-          pos[jx2]   = pRing[jx2]   * (1 + wob);
-          pos[jx2+1] = pRing[jx2+1] * (1 + wob);
-          pos[jx2+2] = pRing[jx2+2];
-        }
-        pMat.opacity = 0.9 + pulse * 0.1;
-        pMat.size = (isMobile ? 0.17 : 0.14);
-
-        ringMat.opacity = 0.85 + pulse * 0.15;
-        ringMat2.opacity = 0.5 + pulse * 0.3;
-        portalMat.opacity = 0.55 + pulse * 0.35;
-        ringMesh.rotation.z += dt * (0.5 + pulse * 0.6);
-        ringMeshInner.rotation.z -= dt * (0.8 + pulse * 0.7);
-        ringMesh.scale.setScalar(1 + pulse * 0.015);
-
-        var peekH = 0.14 + pulse * 0.01;
-        sceneEl.style.clipPath = 'circle(' + (peekH * 100).toFixed(2) + '% at 50% 50%)';
-
-        camZ = CAMERA_RING_Z + Math.sin(t * 6) * 0.06;
-        camFov = CAMERA_RING_FOV;
-        camTarget = RING_CENTER;
-        progress = 0;
-
-      } else {
-        /* ---- BLAST: detonation. The ring dissolves, particles and
-           debris fling outward through the entire site, the clip-path
-           rushes open — the site is rebuilt in front of the viewer. ---- */
-        subPhase = 'blast';
-        var bElapsed = elapsed - GATHER_MS - HOLD_MS;
-        var bp = clamp01(bElapsed / BLAST_MS);
-        var blastEase = easeOutExpo(bp);
-
-        if(!blastIgnited){
-          blastIgnited = true;
-          reseedDebris();
-          debrisMat.opacity = 0.95;
-          // the world only really "arrives" now — this is the one moment
-          // allowed to unconditionally light a couple of beams, because
-          // it IS the musical/dramatic downbeat the whole entrance builds to
-          activateBeam(beams[0]);
-          if(beams[1]){ activateBeam(beams[1]); }
-        }
-
-        var push = 1 + 0.02;
-        for(var i3 = 0; i3 < PARTICLE_COUNT; i3++){
-          var jx3 = i3 * 3;
-          var drift = Math.sin(t * pSpeed[i3] + pPhase[i3]) * 0.4;
-          var tx = pBase[jx3]   * push + Math.cos(t * 0.2 + pPhase[i3]) * 0.15;
-          var ty = pBase[jx3+1] * push + drift * 0.25;
-          var tz = pBase[jx3+2] * push;
-          pos[jx3]   = lerp(pRing[jx3],   tx, blastEase);
-          pos[jx3+1] = lerp(pRing[jx3+1], ty, blastEase);
-          pos[jx3+2] = lerp(pRing[jx3+2], tz, blastEase);
-        }
-        pMat.opacity = 1;
-        pMat.size = (isMobile ? 0.15 : 0.12) + (1 - blastEase) * 0.06;
-
-        var ringFade = 1 - easeInCubic(Math.min(1, bp * 1.8));
-        ringMat.opacity = ringFade * 0.9;
-        ringMat2.opacity = ringFade * 0.5;
-        portalMat.opacity = ringFade * 0.7;
-        var ringBurst = 1 + easeOutCubic(bp) * 1.6;
-        ringMesh.scale.setScalar(ringBurst);
-        ringMeshInner.scale.setScalar(ringBurst * 1.1);
-        ringMesh.rotation.z += dt * 1.4;
-        ringMeshInner.rotation.z -= dt * 1.8;
-
-        var posD = debrisGeo.attributes.position.array;
-        var debrisBlast = easeOutCubic(Math.min(1, bp * 1.5));
-        for(var di = 0; di < DEBRIS_COUNT; di++){
-          var dx = di * 3;
-          posD[dx]   = lerp(debrisStart[dx],   debrisTarget[dx],   debrisBlast);
-          posD[dx+1] = lerp(debrisStart[dx+1], debrisTarget[dx+1], debrisBlast);
-          posD[dx+2] = lerp(debrisStart[dx+2], debrisTarget[dx+2], debrisBlast);
-        }
-        debrisGeo.attributes.position.needsUpdate = true;
-        var debrisBurn = 1 - easeInCubic(Math.max(0, Math.min(1, (bp - 0.3) / 0.7)));
-        debrisMat.opacity = Math.min(1, bp * 3.2) * 0.95 * debrisBurn;
-        debrisFade = 1;
-
-        // ignition flash + the reveal rushing open — the site rebuilding
-        // itself in front of the viewer
-        if(flashEl){ flashEl.style.opacity = Math.max(0, 1 - bp * 4.2).toFixed(3); }
-        var reveal = 0.14 + easeOutExpo(bp) * 1.4;
-        sceneEl.style.clipPath = 'circle(' + (reveal * 100).toFixed(2) + '% at 50% 50%)';
-
-        entryKick = Math.max(0, 1 - bp * 3.2);
-        camZ = CAMERA_RING_Z + (CAMERA_REST_Z - CAMERA_RING_Z) * blastEase - entryKick * 1.4;
-        camFov = (CAMERA_RING_FOV + (CAMERA_REST_FOV - CAMERA_RING_FOV) * blastEase) + entryKick * 16;
-        camTarget = new THREE.Vector3(
-          lerp(RING_CENTER.x, CAMERA_REST_TARGET.x, blastEase),
-          lerp(RING_CENTER.y, CAMERA_REST_TARGET.y, blastEase),
-          lerp(RING_CENTER.z, CAMERA_REST_TARGET.z, blastEase)
-        );
-        progress = blastEase;
-
-        if(bp >= 1){ state = 'active'; }
+      var elapsedSinceEnter = now - enterStartAt;
+      var strongOnset = beatEdge && beatStrength > 0.4 && gatherAmount > 0.3;
+      if(strongOnset || gatherAmount >= 1 || elapsedSinceEnter > ENTER_MAX_WAIT_MS){
+        ignited = true;
+        blastStart = now;
+        blastPunch = Math.max(0.55, beatStrength);
+        reseedDebris();
+        lastGlobalBeatAt = now;
+        beams.forEach(function(b){ triggerBeamReaction(b, blastPunch, now); });
       }
 
+    } else if(state === 'entering' && ignited){
+      /* ---- BLAST: the moment the track actually gave us something to
+         detonate on. Duration here is just the physical time the
+         shockwave takes to fly out — its brightness/force scale with
+         the strength of the exact hit that triggered it. ---- */
+      var bp = clamp01((now - blastStart) / BLAST_MS);
+      var blastEase = easeOutExpo(bp);
+      var push = 1.02;
+      for(var i3 = 0; i3 < PARTICLE_COUNT; i3++){
+        var jx3 = i3 * 3;
+        var drift = Math.sin(t * pSpeed[i3] + pPhase[i3]) * 0.4;
+        var tx = pBase[jx3]   * push + Math.cos(t * 0.2 + pPhase[i3]) * 0.15;
+        var ty = pBase[jx3+1] * push + drift * 0.25;
+        var tz = pBase[jx3+2] * push;
+        pos[jx3]   = lerp(pRing[jx3],   tx, blastEase);
+        pos[jx3+1] = lerp(pRing[jx3+1], ty, blastEase);
+        pos[jx3+2] = lerp(pRing[jx3+2], tz, blastEase);
+      }
       pGeo.attributes.position.needsUpdate = true;
+      pMat.opacity = 1;
+      pMat.size = (isMobile ? 0.15 : 0.12) + (1 - blastEase) * 0.06 * blastPunch;
+
+      var ringFade = 1 - easeInCubic(Math.min(1, bp * 1.8));
+      ringMat.opacity = ringFade * 0.9;
+      ringMat2.opacity = ringFade * 0.5;
+      portalMat.opacity = ringFade * 0.7;
+      var ringBurst = 1 + easeOutCubic(bp) * (1.2 + blastPunch * 0.8);
+      ringMesh.scale.setScalar(ringBurst);
+      ringMeshInner.scale.setScalar(ringBurst * 1.1);
+      ringMesh.rotation.z += dt * 1.4;
+      ringMeshInner.rotation.z -= dt * 1.8;
+
+      var posD = debrisGeo.attributes.position.array;
+      var debrisBlast = easeOutCubic(Math.min(1, bp * 1.5));
+      for(var di = 0; di < DEBRIS_COUNT; di++){
+        var dx = di * 3;
+        posD[dx]   = lerp(debrisStart[dx],   debrisTarget[dx],   debrisBlast);
+        posD[dx+1] = lerp(debrisStart[dx+1], debrisTarget[dx+1], debrisBlast);
+        posD[dx+2] = lerp(debrisStart[dx+2], debrisTarget[dx+2], debrisBlast);
+      }
+      debrisGeo.attributes.position.needsUpdate = true;
+      var debrisBurn = 1 - easeInCubic(Math.max(0, Math.min(1, (bp - 0.3) / 0.7)));
+      debrisMat.opacity = Math.min(1, bp * 3.2) * (0.7 + blastPunch * 0.3) * debrisBurn;
+      debrisFade = 1;
+
+      if(flashEl){ flashEl.style.opacity = (Math.max(0, 1 - bp * 4.2) * blastPunch).toFixed(3); }
+      var reveal = 0.14 + easeOutExpo(bp) * 1.4;
+      sceneEl.style.clipPath = 'circle(' + (reveal * 100).toFixed(2) + '% at 50% 50%)';
+
+      entryKick = Math.max(0, 1 - bp * 3.2) * blastPunch;
+      camZ = CAMERA_RING_Z + (CAMERA_REST_Z - CAMERA_RING_Z) * blastEase - entryKick * 1.4;
+      camFov = (CAMERA_RING_FOV + (CAMERA_REST_FOV - CAMERA_RING_FOV) * blastEase) + entryKick * 16;
+      camTarget = new THREE.Vector3(
+        lerp(RING_CENTER.x, CAMERA_REST_TARGET.x, blastEase),
+        lerp(RING_CENTER.y, CAMERA_REST_TARGET.y, blastEase),
+        lerp(RING_CENTER.z, CAMERA_REST_TARGET.z, blastEase)
+      );
+      progress = blastEase;
+
+      if(bp >= 1){ state = 'active'; }
 
     } else if(state === 'exiting'){
       var p2 = Math.min(1, (now - transitionStart) / EXIT_MS);
@@ -3238,46 +3206,34 @@ window.VXData = {
       ringMat.opacity = 0; ringMat2.opacity = 0; portalMat.opacity = 0;
       if(p2 >= 1){
         state = 'idle';
+        ignited = false;
         sceneEl.classList.remove('active');
         scrimEl.classList.remove('active');
         sceneEl.style.clipPath = 'circle(0% at 50% 50%)';
         document.documentElement.style.setProperty('--immersive-beat', '0');
-        beams.forEach(function(b){ b.active = false; b.mesh.material.opacity = 0; });
+        beams.forEach(function(b){ b.punch = 0; b.mesh.material.opacity = 0; });
         return;
       }
     } else {
-      // active: the blast debris and portal ring have done their job —
-      // dissolve them away so the persistent ambient field is the only
-      // thing left running
+      /* ---- active: the portal has done its job — dissolve it away so
+         the persistent ambient field and the beam trio are the only
+         things left running, entirely off the live audio. ---- */
       debrisFade = Math.max(0, debrisFade - dt * 1.6);
       debrisMat.opacity = debrisFade * 0.9;
       ringMat.opacity = 0; ringMat2.opacity = 0; portalMat.opacity = 0;
       if(flashEl){ flashEl.style.opacity = '0'; }
 
-      // particles: ambient drift + real outward pulse on bass/beat
-      var audioIdle = window.VX_AUDIO || {};
-      var bassIdle = audioIdle.bass || 0, trebleIdle = audioIdle.treble || 0, midIdle = audioIdle.mid || 0;
-      beatPunch += ((audioIdle.beatStrength || 0) - beatPunch) * 0.4;
-      var pushIdle = 1 + bassIdle * 0.12 + beatPunch * 0.35;
+      var pushIdle = 1 + bass * 0.12 + beatPunch * 0.35;
       for(var i4 = 0; i4 < PARTICLE_COUNT; i4++){
         var jx4 = i4 * 3;
-        var driftIdle = Math.sin(t * pSpeed[i4] + pPhase[i4]) * (0.4 + trebleIdle * 0.6);
+        var driftIdle = Math.sin(t * pSpeed[i4] + pPhase[i4]) * (0.4 + treble * 0.6);
         pos[jx4]   = pBase[jx4]   * pushIdle + Math.cos(t * 0.2 + pPhase[i4]) * 0.15;
         pos[jx4+1] = pBase[jx4+1] * pushIdle + driftIdle * 0.25;
         pos[jx4+2] = pBase[jx4+2] * pushIdle;
       }
       pGeo.attributes.position.needsUpdate = true;
-      pMat.opacity = 0.55 + midIdle * 0.35 + beatPunch * 0.25;
-      pMat.size = (isMobile ? 0.15 : 0.12) + trebleIdle * 0.09;
-      document.documentElement.style.setProperty('--immersive-beat', beatPunch.toFixed(3));
-    }
-
-    var audio = window.VX_AUDIO || {};
-    var bass = audio.bass || 0, mid = audio.mid || 0, treble = audio.treble || 0;
-    var level = audio.level || 0;
-    if(state !== 'active'){
-      beatPunch += ((audio.beatStrength || 0) - beatPunch) * 0.4;
-      document.documentElement.style.setProperty('--immersive-beat', beatPunch.toFixed(3));
+      pMat.opacity = 0.55 + mid * 0.35 + beatPunch * 0.25;
+      pMat.size = (isMobile ? 0.15 : 0.12) + treble * 0.09;
     }
 
     /* camera */
@@ -3288,84 +3244,69 @@ window.VXData = {
     camera.lookAt(camTarget);
     camera.updateProjectionMatrix();
 
-    /* roaming lights: periodically pick a new target and drift toward it —
-       organic, never-repeating "stage light" wandering, colored washes on
-       the backdrop shift as they move, real light/mid/beat reactivity.
-       Only wanders once the world has actually arrived. */
-    if(state === 'active'){
-      roamLights.forEach(function(rl2){
-        if(t > rl2.nextRetarget){
-          rl2.target = pickRoamTarget();
-          rl2.nextRetarget = t + 3 + Math.random() * 3.5;
-        }
-        rl2.mesh.position.lerp(rl2.target, dt * 0.5);
-        rl2.mesh.intensity = (1.1 + mid * 2.2 + beatPunch * 2.6);
-      });
+    /* ---- roaming point lights: retarget on a beat, not a timer, so
+       the ambient wash of color literally follows the rhythm too. ---- */
+    if(ignited && beatEdge){
+      var rlPick = roamLights[beatRoundRobin % ROAM_COUNT];
+      rlPick.target = pickRoamTarget();
     }
+    roamLights.forEach(function(rl2){
+      rl2.mesh.position.lerp(rl2.target, dt * (0.6 + beatPunch * 0.8));
+      rl2.mesh.intensity = (state === 'active' ? 1.1 : 0.5) + mid * 2.2 + beatPunch * 2.6;
+    });
 
-    /* light beams: driven entirely by the actual music rather than their
-       own clock.
-       - a rolling fast/slow read on overall level flags both quiet
-         passages (fade everything, spawn nothing) and section changes
-         (large gap between the two — a drop, a breakdown, a build) which
-         send active beams onto a new travel leg or fast-track their exit;
-       - a rising edge on the beat-onset detector spawns a fresh beam into
-         a free slot, more likely the more intense the moment is;
-       - every active beam travels a real curved path through the scene
-         for the length of its life — never sits still, never teleports. */
-    var beatEdge = (audio.beatStrength || 0) > prevBeatStrength + 0.05 && (audio.beatStrength || 0) > 0.32;
-    prevBeatStrength = audio.beatStrength || 0;
-    levelFast += (level - levelFast) * 0.18;
-    levelSlow += (level - levelSlow) * 0.015;
-    var sectionShift = Math.abs(levelFast - levelSlow);
-    var isQuiet = levelSlow < 0.055;
-
-    if(state === 'active'){
-      if(beatEdge && !isQuiet && (now - lastBeamSpawnAt) > 90){
-        var spawnChance = 0.3 + level * 0.55 + beatPunch * 0.35;
-        if(Math.random() < spawnChance){
-          var freeSlot = beams.find(function(b){ return !b.active; });
-          if(freeSlot){ activateBeam(freeSlot); lastBeamSpawnAt = now; }
+    /* ---- LIGHT BEAMS: the beat-driven engine described above. ---- */
+    if(ignited){
+      if(beatEdge){
+        if(lastGlobalBeatAt > 0){
+          var interval = now - lastGlobalBeatAt;
+          beatIntervalEstimate = clamp(lerp(beatIntervalEstimate, interval, 0.5), 140, 1800);
         }
+        lastGlobalBeatAt = now;
+        var beamPick = beams[beatRoundRobin % BEAM_COUNT];
+        beatRoundRobin++;
+        triggerBeamReaction(beamPick, beatStrength, now);
       }
-      if(sectionShift > 0.14 && (now - lastShiftAt) > 1100){
+      if(sectionShift > 0.16 && (now - lastShiftAt) > 900){
         lastShiftAt = now;
-        beams.forEach(function(b){
-          if(!b.active) return;
-          if(Math.random() < 0.5){ retargetBeam(b); }
-          else { b.life = b.maxLife * 0.9; }
-        });
-        var burst = isMobile ? 1 : 2;
-        for(var s = 0; s < burst; s++){
-          var slot2 = beams.find(function(b){ return !b.active; });
-          if(slot2){ activateBeam(slot2); }
-        }
-      }
-      if(isQuiet){
-        beams.forEach(function(b){ if(b.active){ b.life = Math.max(b.life, b.maxLife * 0.92); } });
+        var dropPunch = Math.max(0.8, beatStrength);
+        beams.forEach(function(b){ triggerBeamReaction(b, dropPunch, now); });
       }
     }
 
     beams.forEach(function(b){
-      if(!b.active) return;
-      b.life += dt;
-      var lifeT = b.life / b.maxLife;
-      if(lifeT >= 1){ b.active = false; b.mesh.material.opacity = 0; return; }
-      var travelT = easeInOutCubic(Math.min(1, lifeT));
-      quadBezier(beamPosTmp, b.start, b.control, b.end, travelT);
-      b.mesh.position.copy(beamPosTmp);
+      var p = quadBezier(beamPosTmp, b.from, b.control, b.to,
+        easeInOutCubic(b.travelDur > 0 ? Math.min(1, (now - b.travelStart) / b.travelDur) : 1));
 
-      bezierTangent(beamTangentTmp, b.start, b.control, b.end, travelT);
+      // continuous micro-wander layered on the travel path, so a beam
+      // that has arrived (or hasn't been re-triggered in a while) is
+      // still visibly alive, never frozen
+      b.idlePhase += dt * (0.5 + treble * 1.3);
+      var wander = 0.4;
+      p.x += Math.sin(b.idlePhase * 1.3 + b.seed) * wander;
+      p.y += Math.cos(b.idlePhase * 1.05 + b.seed * 1.6) * wander * 0.7;
+      p.z += Math.sin(b.idlePhase * 0.85 + b.seed * 2.3) * wander;
+      b.mesh.position.copy(p);
+
+      bezierTangent(beamTangentTmp, b.from, b.control, b.to, 0.5);
       if(beamTangentTmp.lengthSq() > 1e-6){
         beamTangentTmp.normalize();
         beamQuatTmp.setFromUnitVectors(beamUpAxis, beamTangentTmp);
-        b.twistAngle += dt * (0.5 + treble * 1.6 + beatPunch * 0.8);
+        b.twistAngle += dt * (0.4 + treble * 1.6 + beatPunch * 0.9);
         beamTwistQuatTmp.setFromAxisAngle(beamTangentTmp, b.twistAngle);
         b.mesh.quaternion.copy(beamQuatTmp).multiply(beamTwistQuatTmp);
       }
-      b.mesh.scale.lerp(b.scaleTarget, Math.min(1, dt * 1.1));
-      var envelope = Math.sin(Math.PI * Math.min(1, lifeT));
-      b.mesh.material.opacity = envelope * b.peak * (0.18 + mid * 0.32 + beatPunch * 0.38);
+
+      // punch is the beat-triggered flash: spikes the instant a beat
+      // fires, decays continuously until the next one — this is what
+      // makes the beams "appear/disappear" in lockstep with the track
+      b.punch *= Math.exp(-dt * 3.2);
+      var quietFactor = isQuiet ? 0.12 : 1;
+      var floorGlow = ignited ? (0.06 + mid * 0.22) : 0;
+      var op = (floorGlow + b.punch * 0.85 + beatPunch * 0.2) * quietFactor;
+      b.mesh.material.opacity = clamp01(op);
+      var sc = 0.65 + b.punch * 0.7 + bass * 0.15;
+      b.mesh.scale.set(sc, 1 + b.punch * 0.35, 1);
     });
 
     floorMat.opacity = (0.1 + bass * 0.18 + beatPunch * 0.2) * (state === 'active' ? 1 : progress);
