@@ -14,9 +14,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --obsidian:#080810;
-    --midnight:#12131F;
-    --line:#1E1E28;
+    --obsidian:#050509;
+    --midnight:#0D0E17;
+    --line:#191922;
     --gold:#C9A96E;
     --gold-dim:rgba(201,169,110,0.35);
     --smoke:#9E9080;
@@ -25,6 +25,12 @@
     --sans:'Jost', sans-serif;
     --body:'DM Sans', sans-serif;
     --ease:cubic-bezier(.16,.8,.24,1);
+    /* Song-theme tokens — overwritten in real time by the immersive
+       script while a Signal plays. Idle defaults match the brand
+       palette 1:1 so nothing shifts until playback actually starts. */
+    --imm-ivory:#F2EDE4;
+    --imm-smoke:#9E9080;
+    --imm-line:#191922;
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   html{scroll-behavior:smooth;}
@@ -88,7 +94,7 @@
   }
   nav.scrolled{
     padding:1rem 2.5rem;
-    background:rgba(8,8,16,0.72);
+    background:rgba(5,5,9,0.78);
     backdrop-filter:blur(14px);
     border-bottom:1px solid var(--line);
   }
@@ -375,7 +381,7 @@
     overflow:hidden;
     background:
       radial-gradient(46% 42% at 50% 40%, rgba(201,169,110,0.08) 0%, transparent 72%),
-      radial-gradient(120% 100% at 50% 20%, #12131f 0%, #08080f 70%);
+      radial-gradient(120% 100% at 50% 20%, #0d0e17 0%, #050509 70%);
     isolation:isolate;
   }
   @media (max-width:700px){
@@ -413,7 +419,7 @@
     inset:0;
     z-index:2;
     pointer-events:none;
-    background:radial-gradient(120% 90% at 50% 48%, transparent 38%, rgba(8,8,16,0.92) 100%);
+    background:radial-gradient(120% 90% at 50% 48%, transparent 38%, rgba(5,5,9,0.94) 100%);
   }
   .editions-bar{
     position:absolute;
@@ -791,8 +797,8 @@
     pointer-events:none;
     opacity:0;
     background:
-      radial-gradient(120% 90% at 50% 45%, transparent 38%, rgba(8,8,16,0.6) 100%),
-      linear-gradient(rgba(8,8,16,0.3), rgba(8,8,16,0.3));
+      radial-gradient(120% 90% at 50% 45%, transparent 38%, rgba(5,5,9,0.68) 100%),
+      linear-gradient(rgba(5,5,9,0.36), rgba(5,5,9,0.36));
   }
   #immersiveFlash{
     position:fixed;
@@ -846,33 +852,21 @@
   body.immersive-active .scroll-cue .line{
     background:linear-gradient(var(--imm-accent), transparent);
   }
-  /* Persistent (non-hover) brand-gold accents, site-wide — this is what
-     makes the whole page's palette read as "tuned to this song" rather
-     than just the player itself. Text color is never touched here, only
-     the decorative accent, so contrast/readability stay untouched. */
-  body.immersive-active .manifesto-quote,
-  body.immersive-active .pillar-name,
-  body.immersive-active .note-tag,
-  body.immersive-active .footer-tagline,
-  body.immersive-active .tile-cta{
-    transition:color 1.2s ease;
-    color: var(--imm-accent);
-  }
-  body.immersive-active .edition-cta--primary{
-    transition:background 1.2s ease, border-color 1.2s ease;
-    background: var(--imm-accent);
-    border-color: var(--imm-accent);
-  }
-  body.immersive-active .edition-cta{
-    transition:border-color 1.2s ease, background 1.2s ease, transform .3s ease;
-    border-color: var(--imm-accent-dim);
-  }
-  body.immersive-active .edition-cta:hover{ border-color: var(--imm-accent); }
-  body.immersive-active .note-card:hover,
-  body.immersive-active .notes-footer a:hover,
-  body.immersive-active .social-row a:hover{
-    color: var(--imm-accent);
-    border-color: var(--imm-accent-dim);
+  /* Full site-wide palette cascade — the moment a Signal plays, every
+     existing use of --gold / --ivory / --smoke / --line across the
+     entire stylesheet (buttons, borders, icons, links, labels, titles,
+     subtitles, dividers, the Editions/book section — everywhere) picks
+     up the song's color automatically, because these are the same
+     tokens the whole site was already built on. Contrast is guaranteed
+     at the source (see ensureReadableL in the immersive script), not
+     per-selector, which is why no individual rule below needs its own
+     color — they already used these tokens. */
+  body.immersive-active{
+    --gold: var(--imm-accent);
+    --gold-dim: var(--imm-accent-dim);
+    --ivory: var(--imm-ivory);
+    --smoke: var(--imm-smoke);
+    --line: var(--imm-line);
   }
   body.immersive-active ::selection{ background: var(--imm-accent); }
   @media (prefers-reduced-motion:reduce){
@@ -1632,7 +1626,7 @@ window.VXData = {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
 
   var scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x08080f, 0.11);
+  scene.fog = new THREE.FogExp2(0x050509, 0.11);
 
   var camera = new THREE.PerspectiveCamera(40, 1, 0.1, 60);
   camera.position.set(0, 0.12, isMobile ? 8.4 : 7.4);
@@ -1690,7 +1684,7 @@ window.VXData = {
 
     var grad = ctx.createLinearGradient(0,0,0,c.height);
     grad.addColorStop(0, '#15161f');
-    grad.addColorStop(1, '#08080f');
+    grad.addColorStop(1, '#050509');
     ctx.fillStyle = grad;
     ctx.fillRect(0,0,c.width,c.height);
 
@@ -2196,6 +2190,14 @@ window.VXData = {
 
     keyLight.intensity = 2.2 + Math.sin(t*0.6)*0.25;
     accentLight.position.set(Math.sin(t*0.32)*3.4, 1.2 + Math.sin(t*0.5)*0.6, Math.cos(t*0.32)*3.2 + 1.6);
+    // Editions/book stage borrows the same live song-color theme as the
+    // rest of the page (window.VX_THEME), so the library never looks
+    // like a separate, un-tinted corner of the site while a track plays.
+    if(window.VX_THEME){
+      var th = window.VX_THEME;
+      keyLight.color.setHSL(((th.hue % 360) + 360) % 360 / 360, Math.min(0.7, th.sat), Math.min(0.66, th.light));
+      accentLight.color.copy(keyLight.color);
+    }
 
     if(!reduceMotion){ dust.rotation.y += dt*0.012; }
 
@@ -2990,6 +2992,55 @@ window.VXData = {
     th.light += (th.targetLight - th.light) * 0.16;
   }
 
+  /* ---------- Contrast-safe color math ----------
+     Everything below exists so "the whole site adopts the song's color"
+     never comes at the cost of readability: every text/accent tone is
+     checked against the (dark) page background and nudged lighter,
+     automatically, until it clears a real WCAG contrast ratio — the hue
+     (the song's identity) is never touched, only lightness/saturation. */
+  function hslToRgb(h, s, l){
+    h = (((h % 360) + 360) % 360) / 360;
+    var r, g, b;
+    if(s <= 0){ r = g = b = l; }
+    else{
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      var hue2rgb = function(p, q, t){
+        if(t < 0) t += 1;
+        if(t > 1) t -= 1;
+        if(t < 1/6) return p + (q - p) * 6 * t;
+        if(t < 1/2) return q;
+        if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      };
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    return [r * 255, g * 255, b * 255];
+  }
+  function relLuminance(r, g, b){
+    function chan(c){ c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b);
+  }
+  function contrastRatio(l1, l2){
+    var a = Math.max(l1, l2) + 0.05, b = Math.min(l1, l2) + 0.05;
+    return a / b;
+  }
+  // matches the page's own (darkened) --obsidian background
+  var BG_LUMINANCE = relLuminance(5, 5, 9);
+  /* Nudges lightness up until the color reaches minRatio against the
+     page background, capping out at near-white so it never inverts the
+     hue's character — just brightens it enough to stay legible. */
+  function ensureReadableL(h, s, l, minRatio){
+    for(var i = 0; i < 14 && l < 0.97; i++){
+      var rgb = hslToRgb(h, s, l);
+      if(contrastRatio(relLuminance(rgb[0], rgb[1], rgb[2]), BG_LUMINANCE) >= minRatio) break;
+      l = Math.min(0.97, l + 0.045);
+    }
+    return l;
+  }
+
   function writeAccentVars(audio, amt){
     stepTheme();
     var th = window.VX_THEME || THEME_DEFAULT_FALLBACK;
@@ -3001,9 +3052,29 @@ window.VXData = {
     var dh = ((liveHue - th.hue + 540) % 360) - 180;
     var hue = (th.hue + dh * 0.18 + 360) % 360;
     var sat = Math.min(80, th.sat * 100 + (audio.level || 0) * 14 + (audio.beat || 0) * 10);
-    var light = Math.min(74, th.light * 100 + (audio.level || 0) * 7 + (audio.beat || 0) * 6);
-    document.documentElement.style.setProperty('--imm-accent', 'hsl(' + hue.toFixed(1) + ' ' + sat.toFixed(0) + '% ' + light.toFixed(0) + '%)');
-    document.documentElement.style.setProperty('--imm-accent-dim', 'hsl(' + hue.toFixed(1) + ' ' + sat.toFixed(0) + '% ' + light.toFixed(0) + '% / ' + (0.38 * Math.max(amt, 0.4)).toFixed(2) + ')');
+    var lightRaw = Math.min(74, th.light * 100 + (audio.level || 0) * 7 + (audio.beat || 0) * 6);
+
+    // --imm-accent is used as TEXT/icon color in many places across the
+    // site (labels, links, borders), not only as decoration, so it must
+    // clear a solid contrast ratio on its own — same hue, safe lightness.
+    var accentL = ensureReadableL(hue, sat / 100, lightRaw / 100, 4.6) * 100;
+    document.documentElement.style.setProperty('--imm-accent', 'hsl(' + hue.toFixed(1) + ' ' + sat.toFixed(0) + '% ' + accentL.toFixed(0) + '%)');
+    document.documentElement.style.setProperty('--imm-accent-dim', 'hsl(' + hue.toFixed(1) + ' ' + sat.toFixed(0) + '% ' + accentL.toFixed(0) + '% / ' + (0.38 * Math.max(amt, 0.4)).toFixed(2) + ')');
+
+    // --imm-ivory: primary text/headline tone — a light, whisper-tinted
+    // version of the song's hue. Already near-white, so contrast against
+    // a near-black background stays excellent regardless of hue.
+    var ivoryL = ensureReadableL(hue, 0.22, 0.90, 8.5) * 100;
+    document.documentElement.style.setProperty('--imm-ivory', 'hsl(' + hue.toFixed(1) + ' 22% ' + ivoryL.toFixed(0) + '%)');
+
+    // --imm-smoke: secondary/muted text tone — subtler tint, still kept
+    // well clear of the readability floor for body copy.
+    var smokeL = ensureReadableL(hue, 0.16, 0.62, 4.7) * 100;
+    document.documentElement.style.setProperty('--imm-smoke', 'hsl(' + hue.toFixed(1) + ' 16% ' + smokeL.toFixed(0) + '%)');
+
+    // --imm-line: hairline borders/dividers — a faint tint, decorative
+    // only, so no contrast floor is needed here.
+    document.documentElement.style.setProperty('--imm-line', 'hsl(' + hue.toFixed(1) + ' 20% 16% / 0.9)');
   }
   var THEME_DEFAULT_FALLBACK = { hue: 39, sat: 0.46, light: 0.61 };
 
