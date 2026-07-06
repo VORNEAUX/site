@@ -1326,9 +1326,12 @@ window.VXData = {
    While the user is actively scrolling (including dragging the
    native scrollbar), those renderers back off to every-other-
    frame so the compositor + GPU always have headroom. The
-   audio-reactive immersive scene (tick3) never reads this flag
-   and always stays at full rate — staying locked to the music
-   matters more than the background dressing.
+   audio-reactive immersive scene (tick3) also backs off under
+   this flag — its audio analysis runs on a fully separate loop
+   (see visualTick), so easing its own render rate never costs
+   it sync with the music, and as the heaviest of the four
+   renderers it's exactly the one that most needs to yield
+   main-thread time during a scrollbar drag.
 ========================================================= */
 window.VX_SCROLL_ACTIVE = false;
 /* Shared rAF-batched scroll dispatch. Dragging the native scrollbar
@@ -1345,7 +1348,15 @@ window.VX_SCROLL_ACTIVE = false;
    how many raw 'scroll' events land in between, so every listener
    registered through it gets smooth, frame-locked scroll-driven
    updates whether the visitor uses the wheel, a trackpad, touch, or
-   drags the scrollbar thumb by hand. */
+   drags the scrollbar thumb by hand.
+
+   Note: window.VX_AUDIO (level/bass/mid/treble/beat/etc.) is computed
+   by its own independent rAF loop (visualTick, driven straight off the
+   Web Audio AnalyserNode), not by the immersive scene's render loop.
+   That means the immersive scene can also ease off its own render
+   rate under VX_SCROLL_ACTIVE without ever losing sync with the
+   music — the analysis keeps running at full rate underneath either
+   way, so the beat/energy values it reads back are always current. */
 (function(){
   var idleTimer = null;
   var subscribers = [];
@@ -3435,9 +3446,24 @@ window.VX_SCROLL_ACTIVE = false;
 
   function lerp(a, b, t){ return a + (b - a) * t; }
 
+  var immersiveSkipFrame = false;
   function tick3(){
     if(!running) return;
     requestAnimationFrame(tick3);
+    // This is the heaviest of the four WebGL loops on the page, so it's
+    // the one most worth easing during a scrollbar drag. Safe to skip
+    // every other frame here: window.VX_AUDIO (level/bass/beat/etc.) is
+    // produced by visualTick(), a fully separate rAF loop tied straight
+    // to the AnalyserNode, so it keeps updating at full rate regardless
+    // — this loop only skips its own particle/light math and render
+    // call, never the music analysis, so sync with the track is never
+    // affected. dt below still accumulates correctly across the
+    // skipped frame (clock3 keeps ticking), so motion simply advances
+    // in a slightly bigger step rather than stalling.
+    if(window.VX_SCROLL_ACTIVE){
+      immersiveSkipFrame = !immersiveSkipFrame;
+      if(immersiveSkipFrame) return;
+    }
     var dt = Math.min(clock3.getDelta(), 0.05);
     var t = clock3.elapsedTime;
 
@@ -3464,6 +3490,17 @@ window.VX_SCROLL_ACTIVE = false;
     flashLight = Math.max(flashLight * 0.88, drop);
 
     var energy = (1 - calm * 0.82); // how "awake" the whole scene is right now
+
+    // Re-roll the lighting rig on the song's own tempo cadence, not only
+    // on discrete strong-onset/drop events. runLightingCue() already
+    // gates itself with a cooldown derived from the track's detected
+    // tempo, so calling it every frame just means the director checks
+    // "is it time for a new cue?" constantly instead of only reacting
+    // to loud hits — this is what keeps the rig genuinely evolving
+    // through quieter, more gradual sections instead of freezing on
+    // whatever set of fixtures happened to be active at the last big
+    // onset.
+    runLightingCue(performance.now(), false);
 
     if(currentWorld){
       for(var i = 0; i < particleCount; i++){
