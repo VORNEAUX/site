@@ -179,13 +179,14 @@
        block taps on the page underneath while closed. */
     .nav-links{
       position:fixed;
-      inset:0;
+      top:var(--nav-h, 72px);
+      left:0; right:0; bottom:0;
       z-index:81;
       flex-direction:column;
       align-items:flex-start;
       justify-content:center;
       gap:0;
-      padding:8vh 2.2rem 10vh;
+      padding:4vh 2.2rem 10vh;
       background:
         radial-gradient(120% 70% at 85% 12%, rgba(201,169,110,0.10) 0%, transparent 60%),
         linear-gradient(165deg, rgba(9,9,15,0.99), rgba(5,5,9,0.99));
@@ -1542,6 +1543,23 @@ window.VX_SCROLL_ACTIVE = false;
 
   /* ---------- Nav scroll state ---------- */
   var nav = document.getElementById('mainNav');
+
+  /* Keep --nav-h in sync with the *real* rendered height of the fixed
+     navbar (logo + toggle), instead of guessing it with a vh percentage.
+     This is what the mobile drawer's top offset uses, so the drawer can
+     never open underneath/overlapping the logo, regardless of viewport
+     quirks (mobile toolbar show/hide, font metrics, notches, rotation). */
+  function syncNavHeight(){
+    var h = nav.getBoundingClientRect().height;
+    if(h > 0){
+      document.documentElement.style.setProperty('--nav-h', h + 'px');
+    }
+  }
+  syncNavHeight();
+  window.addEventListener('resize', syncNavHeight);
+  window.addEventListener('orientationchange', function(){ setTimeout(syncNavHeight, 150); });
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(syncNavHeight); }
+
   function onScrollNav(){
     if(window.scrollY > 40){ nav.classList.add('scrolled'); }
     else{ nav.classList.remove('scrolled'); }
@@ -1555,6 +1573,7 @@ window.VX_SCROLL_ACTIVE = false;
   var navScrollY = 0;
   function setNavOpen(open){
     if(open === body.classList.contains('nav-open')) return;
+    if(open){ syncNavHeight(); }
     body.classList.toggle('nav-open', open);
     navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
