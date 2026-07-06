@@ -505,10 +505,13 @@
   }
   .editions-caption{
     position:absolute;
-    left:2rem;
+    /* left arrow sits at left:1.8rem with a 54px diameter, i.e. it
+       occupies roughly 1.8rem–5.2rem — the caption starts well clear
+       of that so its text is never clipped or covered by the button */
+    left:6.5rem;
     bottom:2rem;
     z-index:4;
-    max-width:400px;
+    max-width:380px;
     padding:1.7rem 1.9rem;
     background:linear-gradient(160deg, rgba(15,15,23,0.6), rgba(9,9,15,0.28));
     border:1px solid var(--gold-dim);
@@ -519,7 +522,9 @@
   }
   .editions-caption.is-leaving{ opacity:0; transform:translateY(12px); }
   @media (max-width:700px){
-    .editions-caption{ left:1rem; right:1rem; bottom:1rem; max-width:none; padding:1.25rem 1.4rem; }
+    /* on mobile both arrows shrink to 44px at 0.7rem, so clear each with
+       matching left/right insets instead of the desktop-only offset */
+    .editions-caption{ left:4.4rem; right:4.4rem; bottom:1rem; max-width:none; padding:1.25rem 1.4rem; }
   }
   .edition-index{
     font-family:var(--sans);
@@ -1315,6 +1320,28 @@ window.VXData = {
 </script>
 
 <script>
+/* =========================================================
+   Shared scroll-activity flag — every decorative WebGL loop on
+   the page reads this instead of listening to scroll itself.
+   While the user is actively scrolling (including dragging the
+   native scrollbar), those renderers back off to every-other-
+   frame so the compositor + GPU always have headroom. The
+   audio-reactive immersive scene (tick3) never reads this flag
+   and always stays at full rate — staying locked to the music
+   matters more than the background dressing.
+========================================================= */
+window.VX_SCROLL_ACTIVE = false;
+(function(){
+  var idleTimer = null;
+  window.addEventListener('scroll', function(){
+    window.VX_SCROLL_ACTIVE = true;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function(){ window.VX_SCROLL_ACTIVE = false; }, 180);
+  }, {passive:true});
+})();
+</script>
+
+<script>
 (function(){
   "use strict";
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1491,6 +1518,10 @@ window.VXData = {
   // forms once when scrolled into view, then stays formed (no dissolve)
   var footerShouldForm = reduceMotion;
   var footerProgress = reduceMotion ? 1 : 0;
+  // only worth drawing this small scene while it's actually on screen —
+  // otherwise it was silently rendering every frame for the entire
+  // session, competing for GPU time with nothing to show for it
+  var footerInView = false;
 
   function resizeFooterCanvas(){
     var box = footerCanvas.parentElement.getBoundingClientRect();
@@ -1501,15 +1532,24 @@ window.VXData = {
   resizeFooterCanvas();
 
   if('IntersectionObserver' in window){
-    var footerIO = new IntersectionObserver(function(entries){
+    var footerFormIO = new IntersectionObserver(function(entries){
       entries.forEach(function(entry){
         if(entry.isIntersecting){
           footerShouldForm = true;
-          footerIO.unobserve(entry.target);
+          footerFormIO.unobserve(entry.target);
         }
       });
     }, {threshold:0.3});
-    footerIO.observe(document.getElementById('connect'));
+    footerFormIO.observe(document.getElementById('connect'));
+
+    // separate, looser observer purely for the render-gate above — kept
+    // alive for the page's whole life (unlike the one-shot form trigger)
+    var footerViewIO = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){ footerInView = entry.isIntersecting; });
+    }, {threshold:0, rootMargin:'200px 0px'});
+    footerViewIO.observe(document.getElementById('connect'));
+  } else {
+    footerInView = true;
   }
 
   /* --- Mouse-driven camera parallax --- */
@@ -1522,9 +1562,19 @@ window.VXData = {
   function lerp(a,b,t){ return a + (b-a)*t; }
 
   var clock = new THREE.Clock();
+  var heroSkipFrame = false;
 
   function animate(){
     requestAnimationFrame(animate);
+    // this ambient background is purely decorative, so while the user is
+    // actively scrolling (e.g. dragging the scrollbar) it halves its own
+    // rate rather than compete with the compositor for GPU time — dt
+    // still accumulates correctly across the skipped frame, so motion
+    // stays smooth and simply advances in slightly bigger steps
+    if(window.VX_SCROLL_ACTIVE){
+      heroSkipFrame = !heroSkipFrame;
+      if(heroSkipFrame) return;
+    }
     var dt = Math.min(clock.getDelta(), 0.05);
 
     // form the V on load
@@ -1573,19 +1623,24 @@ window.VXData = {
 
     renderer.render(scene, camera);
 
-    // footer: assemble once into the V, then hold formed and still
-    if(footerShouldForm && footerProgress < 1){
-      footerProgress = Math.min(footerProgress + dt * 0.5, 1);
-      var fEase = 1 - Math.pow(1 - footerProgress, 3);
-      var fPosAttr = fGeo.getAttribute('position');
-      for(var q = 0; q < fCount; q++){
-        fPosAttr.array[q*3]   = lerp(fScatter[q*3],   fTarget[q*3],   fEase);
-        fPosAttr.array[q*3+1] = lerp(fScatter[q*3+1], fTarget[q*3+1], fEase);
-        fPosAttr.array[q*3+2] = lerp(fScatter[q*3+2], fTarget[q*3+2], fEase);
+    // footer: assemble once into the V, then hold formed and still —
+    // and only touch this renderer at all while the footer is actually
+    // on screen (or mid-assembly), instead of drawing an unseen scene
+    // on every single frame of the entire session
+    if(footerInView || (footerShouldForm && footerProgress < 1)){
+      if(footerShouldForm && footerProgress < 1){
+        footerProgress = Math.min(footerProgress + dt * 0.5, 1);
+        var fEase = 1 - Math.pow(1 - footerProgress, 3);
+        var fPosAttr = fGeo.getAttribute('position');
+        for(var q = 0; q < fCount; q++){
+          fPosAttr.array[q*3]   = lerp(fScatter[q*3],   fTarget[q*3],   fEase);
+          fPosAttr.array[q*3+1] = lerp(fScatter[q*3+1], fTarget[q*3+1], fEase);
+          fPosAttr.array[q*3+2] = lerp(fScatter[q*3+2], fTarget[q*3+2], fEase);
+        }
+        fPosAttr.needsUpdate = true;
       }
-      fPosAttr.needsUpdate = true;
+      footerRenderer.render(footerScene, footerCamera);
     }
-    footerRenderer.render(footerScene, footerCamera);
   }
   animate();
 
@@ -2182,9 +2237,17 @@ window.VXData = {
     return { bob: idleBob, rot: idleRot, tiltY: tiltY, tiltX: tiltX };
   }
 
+  var editionsSkipFrame = false;
   function loop(){
     if(!visible){ rafId = null; return; }
     rafId = requestAnimationFrame(loop);
+    // decorative showcase, not the music-sync-critical scene — eases off
+    // to every other frame while the user is actively scrolling so the
+    // scrollbar drag itself always stays buttery smooth
+    if(window.VX_SCROLL_ACTIVE){
+      editionsSkipFrame = !editionsSkipFrame;
+      if(editionsSkipFrame) return;
+    }
     var dt = Math.min(clock.getDelta(), 0.05);
     var t = clock.elapsedTime;
 
@@ -2687,6 +2750,7 @@ window.VXData = {
   var bandSumsScratch = new Float64Array(NUM_BANDS);
   var bandCountsScratch = new Float64Array(NUM_BANDS);
   var bassAvg = 0;
+  var overallAvg = 0, prevOverallLevel = 0; // broadband flux, catches onsets on tracks that aren't bass-heavy
   var lastBeatTime = 0;
   var beatIntervals = [];       // recent onset-to-onset gaps, for tempo estimation
   var tempoPeriod = 0;          // smoothed estimate, seconds; 0 = not established yet
@@ -2754,13 +2818,25 @@ window.VXData = {
     }
     window.VX_AUDIO.calm = calm;
 
-    /* ---------- onset / beat detection (bass-band flux) ---------- */
+    /* ---------- onset / beat detection (bass flux, broadband fallback) ----
+       A hit is real if EITHER the bass band spikes (kick/sub-driven tracks)
+       OR the overall level spikes (vocal/guitar/mid-driven tracks whose
+       rhythm doesn't live in the low end) — whichever fires first still
+       counts as one onset, so tracks that are light on bass stay locked
+       to their actual beat instead of drifting onto an independent cycle. */
     bassAvg += (bassT - bassAvg) * 0.045;
     var bassFlux = bassT - bandPrev[0];
-    if(isPlaying && bassT > bassAvg * 1.28 + 0.045 && bassFlux > 0.015 && (now - lastBeatTime) > 210){
+    var bassHit = bassT > bassAvg * 1.28 + 0.045 && bassFlux > 0.015;
+
+    overallAvg += (target - overallAvg) * 0.045;
+    var overallFlux = target - prevOverallLevel;
+    prevOverallLevel = target;
+    var broadHit = target > overallAvg * 1.22 + 0.05 && overallFlux > 0.045;
+
+    if(isPlaying && (bassHit || broadHit) && (now - lastBeatTime) > 210){
       var gap = lastBeatTime ? (now - lastBeatTime) / 1000 : 0;
       lastBeatTime = now;
-      window.VX_AUDIO.beat = Math.min(1, (bassT - bassAvg) * 2.2);
+      window.VX_AUDIO.beat = Math.min(1, Math.max((bassT - bassAvg) * 2.2, (target - overallAvg) * 2.6));
       window.dispatchEvent(new CustomEvent('vx:beat', { detail: { strength: window.VX_AUDIO.beat } }));
       // tempo estimation: keep recent plausible gaps (54–214 BPM) and
       // track their running median, so the scene can anticipate the
@@ -3149,14 +3225,21 @@ window.VXData = {
     particles = new THREE.Points(particleGeo, particleMat);
     scene3.add(particles);
 
-    // Real moving point lights, one per registered band-group (bass/mid/
-    // treble), each illuminating the lit "ray" planes below.
+    // Real moving point lights — like a small rig of stage spots, each one
+    // locked to its own frequency band (not just a coarse bass/mid/treble
+    // group) so different lights visibly answer to different parts of the
+    // mix, plus a shared band-group for color. They light the "ray" planes
+    // below and carry a beat-triggered position kick, not just a slow orbit.
     var glowTex = makeGlowTexture();
     var groups = ['bass', 'mid', 'treble'];
+    var bandSlots = [1, 4, 8, 12, 6, 14]; // representative band index per light, reused round-robin
     for(var li = 0; li < LIGHT_COUNT[tier]; li++){
       var light = new THREE.PointLight(0xffffff, 0, 30, 1.7);
       light.userData.group = groups[li % groups.length];
+      light.userData.band = bandSlots[li % bandSlots.length];
       light.userData.phase = Math.random() * Math.PI * 2;
+      light.userData.kickSeed = Math.random() * Math.PI * 2;
+      light.userData.kickX = 0; light.userData.kickY = 0; light.userData.kickZ = 0;
       lights.push(light);
       scene3.add(light);
 
@@ -3182,6 +3265,7 @@ window.VXData = {
       });
       var mesh = new THREE.Mesh(rayGeo, rayMat);
       mesh.userData.group = groups[ri % groups.length];
+      mesh.userData.band = bandSlots[ri % bandSlots.length];
       rayMeshes.push(mesh);
       scene3.add(mesh);
     }
@@ -3303,34 +3387,50 @@ window.VXData = {
       camera3.position.z = 11 - flashLight * 1.4;
       camera3.lookAt(0, 0, -4);
 
-      // real lights, each bound to a band-group, sweeping through space —
-      // sized and paced to read as small, precise light sources that
-      // visibly pulse AND physically move with the beat, not just glow.
+      // real lights, each locked to its own band AND bound to a band-group
+      // for color — genuinely sped up/slowed by the music's own energy and
+      // anticipation, and punched by a real decaying kick vector on every
+      // onset (set in the vx:beat listener below), not just glowing in place.
       lights.forEach(function(light, li){
         var g = light.userData.group;
-        var e = g === 'bass' ? audio.bass : (g === 'mid' ? audio.mid : audio.treble);
-        var ph = light.userData.phase + t * (0.25 + (e || 0) * 0.6);
-        var kick = beat * 1.7 + flashLight * 1.1;
+        var bandE = bands[light.userData.band] || 0;
+        var groupE = g === 'bass' ? audio.bass : (g === 'mid' ? audio.mid : audio.treble);
+        var e = groupE * 0.45 + bandE * 0.55;
+
+        light.userData.kickX *= 0.9; light.userData.kickY *= 0.9; light.userData.kickZ *= 0.9;
+
+        // orbital speed itself rises with energy AND anticipation, so a
+        // light visibly gathers pace into the next hit instead of just
+        // sitting on a fixed-period loop underneath a brightness pulse
+        var speedMul = 0.25 + e * 0.75 + anticip * 0.5;
+        var ph = light.userData.phase + t * speedMul;
+        var kick = beat * 1.9 + flashLight * 1.2;
         light.position.set(
-          Math.sin(ph) * (6 + kick),
-          Math.cos(ph * 0.8) * (3.5 + kick * 0.6),
-          -2 + Math.sin(ph * 0.5) * 3 + kick * 0.9
+          Math.sin(ph) * (6 + kick) + light.userData.kickX,
+          Math.cos(ph * 0.8) * (3.5 + kick * 0.6) + light.userData.kickY,
+          -2 + Math.sin(ph * 0.5) * 3 + kick * 0.9 + light.userData.kickZ
         );
-        var hue2 = (g === 'bass' ? HUE.bass : (g === 'mid' ? HUE.mid : HUE.treble)) + currentWorld.hueOffset;
-        var lc = hueToRGB(hue2, 0.85, 0.6);
+
+        // color: anchored to the track's own identity hue, but genuinely
+        // leans toward whichever band is dominant right now and swings
+        // further on a real drop — a rig that visibly changes color when
+        // the music calls for it, not one fixed tone per light forever
+        var baseHue = (g === 'bass' ? HUE.bass : (g === 'mid' ? HUE.mid : HUE.treble)) + currentWorld.hueOffset;
+        var hueDrift = (audio.treble - audio.bass) * 42 + Math.sin(t * 0.15 + li) * 10 + drop * 55;
+        var lc = hueToRGB(baseHue + hueDrift, 0.85, 0.6);
         light.color = lc;
-        light.intensity = (0.35 + (e || 0) * 1.8 + beat * 1.2 + flashLight * 2.0) * (0.45 + energy);
+        light.intensity = (0.35 + e * 2.0 + beat * 1.3 + flashLight * 2.0) * (0.45 + energy);
 
         var core = lightCores[li];
         if(core){
           core.position.copy(light.position);
           core.material.color.copy(lc);
-          var coreEnergy = Math.min(1, 0.1 + (e || 0) * 0.85 + beat * 0.6 + flashLight * 0.7);
+          var coreEnergy = Math.min(1, 0.1 + e * 0.9 + beat * 0.6 + flashLight * 0.7);
           core.material.opacity = coreEnergy * intensity;
-          // pulse: base breathing tied to the band's own energy, plus a
+          // pulse: base breathing tied to this light's own band, plus a
           // sharp momentary kick on the beat itself
-          var beatKick = 1 + beat * 0.55;
-          var coreScale = (1 + coreEnergy * 1.8) * beatKick;
+          var beatKick = 1 + beat * 0.6;
+          var coreScale = (1 + coreEnergy * 1.9) * beatKick;
           core.scale.set(coreScale, coreScale, 1);
         }
       });
@@ -3338,16 +3438,18 @@ window.VXData = {
 
       rayMeshes.forEach(function(mesh, ri){
         var g = mesh.userData.group;
-        var e = g === 'bass' ? audio.bass : (g === 'mid' ? audio.mid : audio.treble);
+        var bandE = bands[mesh.userData.band] || 0;
+        var groupE = g === 'bass' ? audio.bass : (g === 'mid' ? audio.mid : audio.treble);
+        var e = groupE * 0.5 + bandE * 0.5;
         var kick = beat * 2.2 + flashLight * 1.3;
-        mesh.rotation.z += dt * (0.05 + beat * 0.12) * currentWorld.rotationDir;
+        mesh.rotation.z += dt * (0.05 + beat * 0.14 + anticip * 0.05) * currentWorld.rotationDir;
         mesh.position.set(
           Math.sin(t * 0.09 + ri) * (3.8 + kick),
           Math.cos(t * 0.07 + ri) * (2.2 + kick * 0.6),
           -6 - ri * 0.4 + kick
         );
-        mesh.material.opacity = (0.08 + (e || 0) * 0.26 + flashLight * 0.3) * intensity;
-        var rayScale = 1 + (e || 0) * 0.5 + beat * 0.3;
+        mesh.material.opacity = (0.08 + e * 0.28 + flashLight * 0.3) * intensity;
+        var rayScale = 1 + e * 0.55 + beat * 0.3;
         mesh.scale.set(rayScale, rayScale, 1);
       });
     }
@@ -3355,7 +3457,12 @@ window.VXData = {
     if(t - lastVarUpdate > 0.12){
       lastVarUpdate = t;
       writeAccentVars(audio, intensity);
-      var vig = Math.min(0.9, 0.7 + level * 0.15) * intensity;
+      // a touch darker at rest than before, so the whole page reads as
+      // properly "in" the track's color rather than a bright scene with
+      // a light tint over it — text contrast is computed independently
+      // above (ensureReadableL) against a fixed dark baseline, so going
+      // darker here only ever helps legibility, never hurts it
+      var vig = Math.min(0.94, 0.78 + level * 0.14) * intensity;
       vignette.style.opacity = vig.toFixed(3);
     }
     canvas.style.opacity = intensity.toFixed(3);
@@ -3451,6 +3558,22 @@ window.VXData = {
       var a = anchorFor((i + Math.floor(rand() * particleCount)) % particleCount, particleCount, currentWorld.pattern, rand);
       pAnchor[i*3] = a[0]; pAnchor[i*3+1] = a[1]; pAnchor[i*3+2] = a[2];
     }
+  });
+
+  // Every real onset gives each light rig its own fresh, random-direction
+  // kick vector (decayed each frame in tick3) so movement reads as a rig
+  // being punched by the beat rather than a smooth, predictable orbit —
+  // this is on top of, not instead of, the continuous sweep.
+  window.addEventListener('vx:beat', function(e){
+    if(tier === 'off') return;
+    var strength = (e.detail && e.detail.strength) || 0.6;
+    lights.forEach(function(light){
+      var a1 = Math.random() * Math.PI * 2;
+      var a2 = Math.random() * Math.PI * 2;
+      light.userData.kickX = Math.cos(a1) * strength * 2.2;
+      light.userData.kickY = Math.sin(a1) * strength * 1.6;
+      light.userData.kickZ = Math.sin(a2) * strength * 1.8;
+    });
   });
 })();
 </script>
