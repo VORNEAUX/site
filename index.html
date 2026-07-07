@@ -2583,6 +2583,7 @@ window.VX_SCROLL_ACTIVE = false;
   var signalGlow = document.getElementById('signalGlow');
 
   var audioCtx = null, analyser = null, mediaSrcNode = null, freqData = null;
+  var analyserFast = null, fastTimeData = null;
   var synthNodes = null;
   var currentIndex = -1;
   var isPlaying = false;
@@ -2618,7 +2619,13 @@ window.VX_SCROLL_ACTIVE = false;
     if(audioCtx) return;
     var AC = window.AudioContext || window.webkitAudioContext;
     if(!AC) return;
-    audioCtx = new AC();
+    // 'interactive' asks the platform for the smallest render-quantum /
+    // output buffer it's willing to give us. This doesn't change how the
+    // analyser math works, but on most desktop browsers it shrinks the
+    // hardware round-trip from "audio decided" to "audio audible" by
+    // tens of milliseconds compared to the default ('playback') hint,
+    // which is tuned for battery life, not latency.
+    audioCtx = new AC({ latencyHint: 'interactive' });
     analyser = audioCtx.createAnalyser();
     // 2048 (vs. the previous 1024) doubles the number of frequency bins,
     // so the log-spaced band map has more raw data to draw each band
@@ -2638,9 +2645,30 @@ window.VX_SCROLL_ACTIVE = false;
     analyser.smoothingTimeConstant = 0.05;
     freqData = new Uint8Array(analyser.frequencyBinCount);
     bandMap = buildBandMap(freqData.length);
+
+    // ---- dedicated transient analyser ----
+    // `analyser` above needs a wide 2048-sample window to resolve 16
+    // clean frequency bands; at 44.1kHz that window is itself ~46ms
+    // "wide", so anything timed off of it is judging *this instant*
+    // partly against samples up to ~46ms old. That's fine for color
+    // (bass/mid/treble levels), but it's the wrong tool for deciding
+    // *the exact moment* a hit happens. analyserFast is a second tap
+    // on the same source with a tiny 64-sample window (~1.5ms of
+    // audio) read as a raw waveform (time domain, not frequency), with
+    // its internal smoothing fully disabled. It can't tell bass from
+    // treble, but it can tell "silence" from "hit" almost sample-
+    // accurately, which is exactly what onset timing needs. The
+    // frequency analyser still decides *what kind* of hit; this one
+    // decides *when*.
+    analyserFast = audioCtx.createAnalyser();
+    analyserFast.fftSize = 64;
+    analyserFast.smoothingTimeConstant = 0;
+    fastTimeData = new Uint8Array(analyserFast.fftSize);
+
     try{
       mediaSrcNode = audioCtx.createMediaElementSource(audioEl);
       mediaSrcNode.connect(analyser);
+      mediaSrcNode.connect(analyserFast);
     }catch(e){ /* element already connected elsewhere */ }
     analyser.connect(audioCtx.destination);
   }
@@ -2652,6 +2680,7 @@ window.VX_SCROLL_ACTIVE = false;
     var gain = audioCtx.createGain();
     gain.gain.value = 0.0001;
     gain.connect(analyser);
+    if(analyserFast){ gain.connect(analyserFast); }
     var osc1 = audioCtx.createOscillator();
     osc1.type = 'sine'; osc1.frequency.value = 110;
     var osc2 = audioCtx.createOscillator();
@@ -2818,6 +2847,7 @@ window.VX_SCROLL_ACTIVE = false;
   var bandCountsScratch = new Float64Array(NUM_BANDS);
   var bassAvg = 0;
   var overallAvg = 0, prevOverallLevel = 0; // broadband flux, catches onsets on tracks that aren't bass-heavy
+  var fastAvg = 0, prevFastRMS = 0; // raw-waveform flux from analyserFast — sub-2ms onset timing
   var lastBeatTime = 0;
   var beatIntervals = [];       // recent onset-to-onset gaps, for tempo estimation
   var tempoPeriod = 0;          // smoothed estimate, seconds; 0 = not established yet
@@ -2841,6 +2871,7 @@ window.VX_SCROLL_ACTIVE = false;
     bandPrev.fill(0);
     bassAvg = 0;
     overallAvg = 0; prevOverallLevel = 0;
+    fastAvg = 0; prevFastRMS = 0;
     lastBeatTime = 0;
     beatIntervals.length = 0;
     tempoPeriod = 0;
@@ -2906,6 +2937,23 @@ window.VX_SCROLL_ACTIVE = false;
       bandLevels.fill(0);
     }
 
+    // Raw-waveform RMS over the last ~1.5ms of audio (64 samples @
+    // 44.1kHz). This is deliberately not smoothed, band-mapped, or
+    // averaged across a wide FFT window — it exists purely so the onset
+    // detector below can see a transient the instant it enters the
+    // buffer, instead of waiting for it to show up averaged into a
+    // 46ms-wide frequency snapshot.
+    var fastRMS = 0;
+    if(isPlaying && analyserFast){
+      analyserFast.getByteTimeDomainData(fastTimeData);
+      var sumSq = 0, fn = fastTimeData.length;
+      for(var fi = 0; fi < fn; fi++){
+        var sVal = (fastTimeData[fi] - 128) / 128;
+        sumSq += sVal * sVal;
+      }
+      fastRMS = Math.sqrt(sumSq / fn);
+    }
+
     smoothedLevel = envFollow(smoothedLevel, target, 0.65, 0.1);
     smoothedBass = envFollow(smoothedBass, bassT, 0.82, 0.14);
     smoothedMid = envFollow(smoothedMid, midT, 0.7, 0.13);
@@ -2950,6 +2998,19 @@ window.VX_SCROLL_ACTIVE = false;
     prevOverallLevel = target;
     var broadHit = target > overallAvg * 1.18 + 0.045 && overallFlux > 0.038;
 
+    // Same onset logic as broadHit, but riding on fastRMS instead of the
+    // big-FFT `target`. Because fastRMS reflects only the last ~1.5ms of
+    // audio, this branch typically flags a hit noticeably earlier than
+    // bassHit/broadHit on percussive, transient-heavy material (snares,
+    // claps, plosive vocals) — those are exactly the sounds a wide FFT
+    // window smears across several frames before they read as a clear
+    // spike. Whichever of the three trips first still wins; this one
+    // just gives fast transients a shot at winning that race.
+    fastAvg += (fastRMS - fastAvg) * 0.03;
+    var fastFlux = fastRMS - prevFastRMS;
+    prevFastRMS = fastRMS;
+    var fastHit = fastRMS > fastAvg * 1.2 + 0.05 && fastFlux > 0.035;
+
     // Cooldown between onsets used to be a flat 140ms, which blocks
     // anything faster than ~7 hits/sec outright — a 16th-note bassline at
     // 140+ BPM is already closer together than that. Once a tempo estimate
@@ -2958,10 +3019,10 @@ window.VX_SCROLL_ACTIVE = false;
     // still keeping an absolute floor so we never treat analyser jitter as
     // two separate hits.
     var minBeatGap = tempoPeriod > 0 ? Math.max(85, Math.min(140, tempoPeriod * 1000 * 0.3)) : 110;
-    if(isPlaying && (bassHit || broadHit) && (now - lastBeatTime) > minBeatGap){
+    if(isPlaying && (bassHit || broadHit || fastHit) && (now - lastBeatTime) > minBeatGap){
       var gap = lastBeatTime ? (now - lastBeatTime) / 1000 : 0;
       lastBeatTime = now;
-      window.VX_AUDIO.beat = Math.min(1, Math.max((bassT - bassAvg) * 2.4, (target - overallAvg) * 2.8));
+      window.VX_AUDIO.beat = Math.min(1, Math.max((bassT - bassAvg) * 2.4, (target - overallAvg) * 2.8, (fastRMS - fastAvg) * 2.6));
       window.dispatchEvent(new CustomEvent('vx:beat', { detail: { strength: window.VX_AUDIO.beat } }));
       // tempo estimation: keep recent plausible gaps (46–260 BPM) and
       // track their running median, so the scene can anticipate the
