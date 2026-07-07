@@ -2620,8 +2620,16 @@ window.VX_SCROLL_ACTIVE = false;
     if(!AC) return;
     audioCtx = new AC();
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 1024;
-    analyser.smoothingTimeConstant = 0.42;
+    // 2048 (vs. the previous 1024) doubles the number of frequency bins,
+    // so the log-spaced band map has more raw data to draw each band
+    // from — sharper separation between bass/mid/treble instead of a
+    // handful of bins doing all the work. A low internal smoothingTime-
+    // Constant keeps the analyser itself close to the raw signal frame
+    // to frame; the custom fast-attack/slow-release envelope follower
+    // below is what actually shapes the perceptual smoothing, so
+    // stacking a second smoothing layer here only added latency.
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.25;
     freqData = new Uint8Array(analyser.frequencyBinCount);
     bandMap = buildBandMap(freqData.length);
     try{
@@ -2705,6 +2713,15 @@ window.VX_SCROLL_ACTIVE = false;
     currentIndex = index;
     isPlaying = true;
     updateUIPlaying();
+
+    // Every new Signal gets a completely clean analysis state — no
+    // running average, envelope, or beat/drop detector is allowed to
+    // carry a trace of the previous track. Without this, a song that
+    // starts quiet right after a loud one would inherit the old
+    // track's high averages (so its own beats wouldn't register) and
+    // vice versa: the visuals would keep "reading" the wrong song for
+    // the first several seconds.
+    resetAudioAnalysis();
 
     // Immersive Mode reacts to the press immediately — it shouldn't
     // wait for the file to finish loading to start its transition.
@@ -2802,6 +2819,42 @@ window.VX_SCROLL_ACTIVE = false;
   var quietSince = 0;           // performance.now() when level first dropped low
   var calm = 1;                 // 1 = very quiet, 0 = fully energetic
   var lastDropTime = -Infinity;
+
+  // Called at the top of playTrack(), before a single frame of the new
+  // track has been analyzed. Every value below is either a running
+  // average, an envelope-followed level, or a "time since last event"
+  // timestamp — all of which are meaningless (or actively wrong) once
+  // the source audio has changed. Re-zeroing them means bar 1 of the
+  // new track is judged purely on its own merits: no leftover average
+  // level to compare against, no stale tempo estimate, no beat/drop
+  // detector primed by the previous song's dynamics.
+  function resetAudioAnalysis(){
+    smoothedLevel = 0;
+    smoothedBass = 0; smoothedMid = 0; smoothedTreble = 0;
+    bandLevels.fill(0);
+    bandPrev.fill(0);
+    bassAvg = 0;
+    overallAvg = 0; prevOverallLevel = 0;
+    lastBeatTime = 0;
+    beatIntervals.length = 0;
+    tempoPeriod = 0;
+    shortEnergy = 0; longEnergy = 0;
+    quietSince = 0;
+    calm = 1;
+    lastDropTime = -Infinity;
+
+    window.VX_AUDIO.level = 0;
+    window.VX_AUDIO.bass = 0;
+    window.VX_AUDIO.mid = 0;
+    window.VX_AUDIO.treble = 0;
+    window.VX_AUDIO.beat = 0;
+    window.VX_AUDIO.drop = 0;
+    window.VX_AUDIO.calm = 1;
+    window.VX_AUDIO.tempoPeriod = 0;
+    window.VX_AUDIO.anticipation = 0;
+    // bandLevels is the same typed array VX_AUDIO.bands already points
+    // to, so the .fill(0) above already zeroed it — no reassignment.
+  }
 
   function visualTick(){
     requestAnimationFrame(visualTick);
@@ -3254,6 +3307,26 @@ window.VX_SCROLL_ACTIVE = false;
         var a = anchorFor(i, particleCount, currentWorld.pattern, rand);
         pAnchor[i*3] = a[0]; pAnchor[i*3+1] = a[1]; pAnchor[i*3+2] = a[2];
       }
+
+      // Full reset of the lighting rig. Without this, a fixture that
+      // was mid-kick or already "active" from the previous track's
+      // last frame would carry that motion and on/off state straight
+      // into the new song, instead of the new track building its own
+      // light show from silence, one real onset at a time.
+      lights.forEach(function(light){
+        var ud = light.userData;
+        if(ud.retired) return;
+        ud.active = false;
+        ud.activeAmt = 0;
+        ud.kickX = 0; ud.kickY = 0; ud.kickZ = 0;
+        ud.phase = rand() * Math.PI * 2;
+        ud.baseX = (rand() - 0.5) * 8;
+        ud.baseY = (rand() - 0.5) * 4.5;
+        ud.baseZ = -2 - rand() * 5;
+        ud.onT = 0.32 + rand() * 0.3;
+        ud.offT = ud.onT - (0.14 + rand() * 0.1);
+      });
+      flashLight = 0;
     }
 
     function lerp(a, b, t){ return a + (b - a) * t; }
