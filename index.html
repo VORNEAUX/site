@@ -89,13 +89,11 @@
     justify-content:space-between;
     padding:1.6rem 2.5rem;
     mix-blend-mode:normal;
-    backdrop-filter:blur(0px);
     transition:padding .4s var(--ease), background .4s var(--ease);
   }
   nav.scrolled{
     padding:1rem 2.5rem;
-    background:rgba(5,5,9,0.78);
-    backdrop-filter:blur(14px);
+    background:rgba(5,5,9,0.94);
     border-bottom:1px solid var(--line);
   }
   @media (max-width:700px){ nav, nav.scrolled{padding:1.1rem 1.4rem;} }
@@ -130,7 +128,7 @@
   }
   .nav-links a:hover::after{width:100%;}
 
-  /* ---------- Mobile nav: cinematic full-screen panel ---------- */
+  /* ---------- Mobile nav: cinematic dropdown panel ---------- */
   .nav-toggle{
     display:none;
     position:relative;
@@ -163,56 +161,95 @@
   body.nav-open .nav-toggle span::after{ transform:translate(-50%,-50%) rotate(-45deg); }
   body.nav-open{ overflow:hidden; }
 
+  /* Scrim behind the dropdown — dims and separates the rest of the page
+     from the menu, and doubles as a click-outside-to-close target. */
+  .nav-scrim{
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:118;
+    background:rgba(3,3,6,0.55);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .4s var(--ease);
+  }
+
   @media (max-width:860px){
     .nav-toggle{ display:flex; }
+    .nav-scrim{ display:block; }
+    body.nav-open .nav-scrim{ opacity:1; pointer-events:auto; }
+
+    /* The panel itself: a proper self-contained card anchored right below
+       the navbar (its exact height is pushed in via the --nav-h custom
+       property, kept in sync by JS), never full-screen and never
+       vertically centered — so every item renders top-to-bottom in a
+       fixed, predictable order and nothing can end up clipped above the
+       viewport. If content is ever taller than the space available it
+       scrolls internally instead of overflowing off-screen. */
     .nav-links{
       position:fixed;
-      inset:0;
-      z-index:55;
+      top:var(--nav-h, 68px);
+      left:0.9rem;
+      right:0.9rem;
+      z-index:119;
+      max-height:calc(100vh - var(--nav-h, 68px) - 1.6rem);
+      max-height:calc(100dvh - var(--nav-h, 68px) - 1.6rem);
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
       display:flex;
       flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      gap:2.1rem;
+      gap:0;
+      padding:0.6rem 1.6rem;
+      border-radius:16px;
+      border:1px solid var(--gold-dim);
       background:
-        radial-gradient(60% 46% at 50% 32%, rgba(201,169,110,0.10), transparent 70%),
-        linear-gradient(165deg, rgba(6,6,10,0.97), rgba(8,8,13,0.995));
-      backdrop-filter:blur(22px);
-      -webkit-backdrop-filter:blur(22px);
+        radial-gradient(120% 90% at 50% 0%, rgba(201,169,110,0.09), transparent 60%),
+        linear-gradient(165deg, rgba(11,11,17,0.92), rgba(6,6,10,0.90));
+      backdrop-filter:blur(24px) saturate(140%);
+      -webkit-backdrop-filter:blur(24px) saturate(140%);
+      box-shadow:0 26px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,169,110,0.04) inset;
       opacity:0;
       visibility:hidden;
       pointer-events:none;
-      transform:translateY(-10px);
-      transition:opacity .5s var(--ease), transform .5s var(--ease), visibility 0s linear .5s;
+      transform:translateY(-12px) scale(0.98);
+      transform-origin:top center;
+      transition:opacity .4s var(--ease), transform .4s var(--ease), visibility 0s linear .4s;
     }
     body.nav-open .nav-links{
       opacity:1;
       visibility:visible;
       pointer-events:auto;
-      transform:translateY(0);
-      transition:opacity .5s var(--ease), transform .5s var(--ease), visibility 0s linear 0s;
+      transform:translateY(0) scale(1);
+      transition:opacity .4s var(--ease), transform .4s var(--ease), visibility 0s linear 0s;
     }
     .nav-links a{
       font-family:var(--serif);
-      font-size:1.5rem;
+      font-size:1.18rem;
       font-weight:400;
-      letter-spacing:0.04em;
+      letter-spacing:0.02em;
       text-transform:none;
       color:var(--ivory);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:1.05rem 0.1rem;
+      border-bottom:1px solid rgba(242,237,228,0.08);
       opacity:0;
-      transform:translateY(16px);
-      transition:opacity .5s var(--ease), transform .5s var(--ease), color .3s ease;
+      transform:translateY(10px);
+      transition:opacity .45s var(--ease), transform .45s var(--ease), color .3s ease;
     }
-    .nav-links a::after{ bottom:-8px; background:var(--gold); }
+    .nav-links a:last-child{ border-bottom:none; }
+    .nav-links a::after{ content:'\2192'; position:static; width:auto; height:auto; background:none; color:var(--gold); font-size:1rem; opacity:0.7; transition:transform .3s var(--ease), opacity .3s ease; }
+    .nav-links a:hover::after, .nav-links a:active::after{ transform:translateX(3px); opacity:1; width:auto; }
     body.nav-open .nav-links a{ opacity:1; transform:translateY(0); }
-    body.nav-open .nav-links a:nth-child(1){ transition-delay:.10s; }
-    body.nav-open .nav-links a:nth-child(2){ transition-delay:.16s; }
-    body.nav-open .nav-links a:nth-child(3){ transition-delay:.22s; }
-    body.nav-open .nav-links a:nth-child(4){ transition-delay:.28s; }
-    body.nav-open .nav-links a:nth-child(5){ transition-delay:.34s; }
+    body.nav-open .nav-links a:nth-child(1){ transition-delay:.06s; }
+    body.nav-open .nav-links a:nth-child(2){ transition-delay:.10s; }
+    body.nav-open .nav-links a:nth-child(3){ transition-delay:.14s; }
+    body.nav-open .nav-links a:nth-child(4){ transition-delay:.18s; }
+    body.nav-open .nav-links a:nth-child(5){ transition-delay:.22s; }
   }
   @media (max-width:860px) and (prefers-reduced-motion:reduce){
-    .nav-links, .nav-links a, .nav-toggle span, .nav-toggle span::before, .nav-toggle span::after{ transition:none; }
+    .nav-links, .nav-links a, .nav-toggle span, .nav-toggle span::before, .nav-toggle span::after, .nav-scrim{ transition:none; }
   }
   @media (max-width:400px){
     .nav-mark{ font-size:11.5px; letter-spacing:0.16em; gap:0.55rem; }
@@ -1192,6 +1229,7 @@
     <a href="#connect">Connect</a>
   </div>
 </nav>
+<div class="nav-scrim" id="navScrim" aria-hidden="true"></div>
 
 <main>
 
@@ -1507,15 +1545,24 @@ window.VX_SCROLL_ACTIVE = false;
   window.VX_onScroll(onScrollNav);
   onScrollNav();
 
-  /* ---------- Mobile nav toggle (cinematic full-screen panel) ---------- */
+  /* ---------- Mobile nav toggle (cinematic dropdown panel) ---------- */
   var navToggle = document.getElementById('navToggle');
   var navLinks = document.getElementById('navLinks');
+  var navScrim = document.getElementById('navScrim');
   if(navToggle && navLinks){
+    var syncNavHeight = function(){
+      document.documentElement.style.setProperty('--nav-h', nav.offsetHeight + 'px');
+    };
+    syncNavHeight();
+    window.addEventListener('resize', syncNavHeight);
+    window.VX_onScroll(syncNavHeight);
+
     var closeNav = function(){
       document.body.classList.remove('nav-open');
       navToggle.setAttribute('aria-expanded', 'false');
     };
     var openNav = function(){
+      syncNavHeight();
       document.body.classList.add('nav-open');
       navToggle.setAttribute('aria-expanded', 'true');
     };
@@ -1523,6 +1570,7 @@ window.VX_SCROLL_ACTIVE = false;
       if(document.body.classList.contains('nav-open')){ closeNav(); }
       else{ openNav(); }
     });
+    if(navScrim){ navScrim.addEventListener('click', closeNav); }
     var navAnchors = navLinks.querySelectorAll('a');
     for(var na = 0; na < navAnchors.length; na++){
       navAnchors[na].addEventListener('click', closeNav);
@@ -2052,12 +2100,12 @@ window.VX_SCROLL_ACTIVE = false;
       model:'',
       links:{
         gumroad:{ label:'Get it on Gumroad', href:'' },
-        amazon:{ label:'View on Amazon', href:'' }
+        amazon:{ label:'View on Amazon', href:'https://www.amazon.com/dp/B0H7X25MMN' }
       }
     },
     {
-      id:'next-edition',
-      title:'Next Edition — In Progress',
+      id:'python-for-the-ai-era',
+      title:'Python for the AI Era',
       subtitle:'Currently being bound',
       edition:'EDITION 02',
       description:'The second volume in the VORNEAUX library is currently being bound. Details land here first.',
@@ -2065,7 +2113,7 @@ window.VX_SCROLL_ACTIVE = false;
       model:'',
       links:{
         gumroad:{ label:'Get it on Gumroad', href:'' },
-        amazon:{ label:'View on Amazon', href:'' }
+        amazon:{ label:'View on Amazon', href:'https://www.amazon.com/dp/B0H7QGC9Y4' }
       }
     }
   ];
