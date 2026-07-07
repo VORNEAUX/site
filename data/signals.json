@@ -1,4 +1,12 @@
 [
+    {
+    "id": "one-heart-una-vida",
+    "title": "One Heart // Una Vida",
+    "tag": "Signal 004 · 2026",
+    "duration": "3:14",
+    "src": "assets/audio/tracks/one-heart-una-vida.mp3",
+    "cover": "assets/audio/covers/one-heart-una-vida.jpg"
+  },
   {
     "id": "shadow-mode",
     "title": "Shadow Mode",
