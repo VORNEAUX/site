@@ -83,7 +83,7 @@
   nav{
     position:fixed;
     top:0; left:0; right:0;
-    z-index:50;
+    z-index:120;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -129,7 +129,96 @@
     transition:width .3s var(--ease);
   }
   .nav-links a:hover::after{width:100%;}
-  @media (max-width:700px){ .nav-links{gap:1.2rem;} .nav-links a{font-size:9px;letter-spacing:0.1em;} }
+
+  /* ---------- Mobile nav: cinematic full-screen panel ---------- */
+  .nav-toggle{
+    display:none;
+    position:relative;
+    width:40px; height:40px;
+    align-items:center;
+    justify-content:center;
+    background:rgba(201,169,110,0.05);
+    border:1px solid var(--gold-dim);
+    border-radius:2px;
+    cursor:pointer;
+    z-index:60;
+    -webkit-tap-highlight-color:transparent;
+    flex:none;
+  }
+  .nav-toggle span,
+  .nav-toggle span::before,
+  .nav-toggle span::after{
+    content:'';
+    position:absolute;
+    left:50%; top:50%;
+    width:17px; height:1px;
+    background:var(--gold);
+    transform:translate(-50%,-50%);
+    transition:transform .35s var(--ease), opacity .25s ease, background .3s ease;
+  }
+  .nav-toggle span::before{ transform:translate(-50%,-50%) translateY(-6px); }
+  .nav-toggle span::after{ transform:translate(-50%,-50%) translateY(6px); }
+  body.nav-open .nav-toggle span{ background:transparent; }
+  body.nav-open .nav-toggle span::before{ transform:translate(-50%,-50%) rotate(45deg); }
+  body.nav-open .nav-toggle span::after{ transform:translate(-50%,-50%) rotate(-45deg); }
+  body.nav-open{ overflow:hidden; }
+
+  @media (max-width:860px){
+    .nav-toggle{ display:flex; }
+    .nav-links{
+      position:fixed;
+      inset:0;
+      z-index:55;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:2.1rem;
+      background:
+        radial-gradient(60% 46% at 50% 32%, rgba(201,169,110,0.10), transparent 70%),
+        linear-gradient(165deg, rgba(6,6,10,0.97), rgba(8,8,13,0.995));
+      backdrop-filter:blur(22px);
+      -webkit-backdrop-filter:blur(22px);
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+      transform:translateY(-10px);
+      transition:opacity .5s var(--ease), transform .5s var(--ease), visibility 0s linear .5s;
+    }
+    body.nav-open .nav-links{
+      opacity:1;
+      visibility:visible;
+      pointer-events:auto;
+      transform:translateY(0);
+      transition:opacity .5s var(--ease), transform .5s var(--ease), visibility 0s linear 0s;
+    }
+    .nav-links a{
+      font-family:var(--serif);
+      font-size:1.5rem;
+      font-weight:400;
+      letter-spacing:0.04em;
+      text-transform:none;
+      color:var(--ivory);
+      opacity:0;
+      transform:translateY(16px);
+      transition:opacity .5s var(--ease), transform .5s var(--ease), color .3s ease;
+    }
+    .nav-links a::after{ bottom:-8px; background:var(--gold); }
+    body.nav-open .nav-links a{ opacity:1; transform:translateY(0); }
+    body.nav-open .nav-links a:nth-child(1){ transition-delay:.10s; }
+    body.nav-open .nav-links a:nth-child(2){ transition-delay:.16s; }
+    body.nav-open .nav-links a:nth-child(3){ transition-delay:.22s; }
+    body.nav-open .nav-links a:nth-child(4){ transition-delay:.28s; }
+    body.nav-open .nav-links a:nth-child(5){ transition-delay:.34s; }
+  }
+  @media (max-width:860px) and (prefers-reduced-motion:reduce){
+    .nav-links, .nav-links a, .nav-toggle span, .nav-toggle span::before, .nav-toggle span::after{ transition:none; }
+  }
+  @media (max-width:400px){
+    .nav-mark{ font-size:11.5px; letter-spacing:0.16em; gap:0.55rem; }
+    .nav-mark svg{ width:18px; height:18px; }
+    .nav-toggle{ width:36px; height:36px; }
+  }
 
   /* ---------- Hero ---------- */
   .hero{
@@ -373,11 +462,15 @@
   .tile:hover .tile-cta svg{transform:translateX(4px);}
 
   /* ---------- Editions / cinematic 3D library scene ---------- */
+  .editions-frame{
+    position:relative;
+    width:100%;
+    margin:4rem 0 3.5rem;
+  }
   .editions-stage{
     position:relative;
     width:100%;
     height:min(84vh, 780px);
-    margin:4rem 0 3.5rem;
     overflow:hidden;
     background:
       radial-gradient(46% 42% at 50% 40%, rgba(201,169,110,0.08) 0%, transparent 72%),
@@ -385,7 +478,12 @@
     isolation:isolate;
   }
   @media (max-width:700px){
-    .editions-stage{ height:86vh; min-height:560px; margin:2.6rem 0 2.6rem; }
+    /* On mobile the description card no longer overlays the canvas (see
+       .editions-caption below), so the stage only needs to frame the book
+       itself — a shorter, more proportionate viewport keeps it fully
+       visible without pushing the whole section to near-fullscreen. */
+    .editions-frame{ margin:2.6rem 0 2.8rem; }
+    .editions-stage{ height:60vh; min-height:400px; max-height:500px; }
   }
   .editions-stage canvas{
     position:absolute;
@@ -522,9 +620,21 @@
   }
   .editions-caption.is-leaving{ opacity:0; transform:translateY(12px); }
   @media (max-width:700px){
-    /* on mobile both arrows shrink to 44px at 0.7rem, so clear each with
-       matching left/right insets instead of the desktop-only offset */
-    .editions-caption{ left:4.4rem; right:4.4rem; bottom:1rem; max-width:none; padding:1.25rem 1.4rem; }
+    /* The caption moves out of the canvas entirely on mobile: instead of
+       overlaying the 3D book (which caused the overlap/clipping issue),
+       it becomes a normal-flow card sitting below the stage, so the
+       preview always stays fully visible and the text can wrap and grow
+       to fit whatever space the screen offers. */
+    .editions-caption{
+      position:static;
+      left:auto; right:auto; bottom:auto;
+      z-index:auto;
+      max-width:none;
+      margin:1.3rem 1.4rem 0;
+      padding:1.5rem 1.5rem 1.7rem;
+      border-left:1px solid var(--gold-dim);
+      border-top:2px solid var(--gold);
+    }
   }
   .edition-index{
     font-family:var(--sans);
@@ -587,6 +697,7 @@
   }
   @media (max-width:700px){
     .edition-cta{ padding:0.6rem 0.9rem; font-size:10px; }
+    .edition-desc{ max-width:none; }
   }
 
   /* ---------- Field Notes / blog ---------- */
@@ -1070,7 +1181,10 @@
     </svg>
     VORNEAUX
   </a>
-  <div class="nav-links">
+  <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="navLinks">
+    <span></span>
+  </button>
+  <div class="nav-links" id="navLinks">
     <a href="#ecosystem">Ecosystem</a>
     <a href="#editions">Editions</a>
     <a href="#signals">Signals</a>
@@ -1172,28 +1286,37 @@
       </div>
     </div>
 
-    <div class="editions-stage reveal" id="editionsStage">
-      <canvas id="editions-scene" aria-hidden="true"></canvas>
-      <div class="editions-rays" aria-hidden="true"></div>
-      <div class="editions-vignette" aria-hidden="true"></div>
-      <div class="editions-bar editions-bar--top" aria-hidden="true"></div>
-      <div class="editions-bar editions-bar--bottom" aria-hidden="true"></div>
+    <div class="editions-frame" id="editionsFrame">
+      <div class="editions-stage reveal" id="editionsStage">
+        <canvas id="editions-scene" aria-hidden="true"></canvas>
+        <div class="editions-rays" aria-hidden="true"></div>
+        <div class="editions-vignette" aria-hidden="true"></div>
+        <div class="editions-bar editions-bar--top" aria-hidden="true"></div>
+        <div class="editions-bar editions-bar--bottom" aria-hidden="true"></div>
 
-      <button class="editions-arrow editions-arrow--prev" id="editionsPrev" type="button" aria-label="Previous edition">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <button class="editions-arrow editions-arrow--next" id="editionsNext" type="button" aria-label="Next edition">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+        <button class="editions-arrow editions-arrow--prev" id="editionsPrev" type="button" aria-label="Previous edition">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="editions-arrow editions-arrow--next" id="editionsNext" type="button" aria-label="Next edition">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
 
-      <div class="editions-hud">
-        <span class="editions-hud-label">VORNEAUX — Library</span>
-        <div class="editions-dots" id="editionsDots"><!-- dots injected by JS --></div>
+        <div class="editions-hud">
+          <span class="editions-hud-label">VORNEAUX — Library</span>
+          <div class="editions-dots" id="editionsDots"><!-- dots injected by JS --></div>
+        </div>
+
+        <noscript>
+          <div class="editions-noscript">Enable JavaScript to view the interactive Editions showcase — currently featuring "The Excel Speed Blueprint" and a second volume in progress.</div>
+        </noscript>
       </div>
 
       <!-- Text is injected by JS from the BOOK_DATA array below (see the Editions
            script), so the caption always stays in sync with the 3D book on screen.
-           Edit titles / descriptions / links there, not here. -->
+           Edit titles / descriptions / links there, not here. This card sits
+           outside the canvas stage so on mobile it can flow in normal document
+           order below the book preview instead of overlaying it — see the
+           .editions-caption mobile rules for the static/in-flow behavior. -->
       <div class="editions-caption" id="editionsCaption" aria-live="polite">
         <span class="edition-index" id="capIndex"></span>
         <h3 class="edition-title" id="capTitle"></h3>
@@ -1209,10 +1332,6 @@
           </a>
         </div>
       </div>
-
-      <noscript>
-        <div class="editions-noscript">Enable JavaScript to view the interactive Editions showcase — currently featuring "The Excel Speed Blueprint" and a second volume in progress.</div>
-      </noscript>
     </div>
   </section>
 
@@ -1387,6 +1506,34 @@ window.VX_SCROLL_ACTIVE = false;
   }
   window.VX_onScroll(onScrollNav);
   onScrollNav();
+
+  /* ---------- Mobile nav toggle (cinematic full-screen panel) ---------- */
+  var navToggle = document.getElementById('navToggle');
+  var navLinks = document.getElementById('navLinks');
+  if(navToggle && navLinks){
+    var closeNav = function(){
+      document.body.classList.remove('nav-open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    };
+    var openNav = function(){
+      document.body.classList.add('nav-open');
+      navToggle.setAttribute('aria-expanded', 'true');
+    };
+    navToggle.addEventListener('click', function(){
+      if(document.body.classList.contains('nav-open')){ closeNav(); }
+      else{ openNav(); }
+    });
+    var navAnchors = navLinks.querySelectorAll('a');
+    for(var na = 0; na < navAnchors.length; na++){
+      navAnchors[na].addEventListener('click', closeNav);
+    }
+    window.addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){ closeNav(); }
+    });
+    window.addEventListener('resize', function(){
+      if(window.innerWidth > 860){ closeNav(); }
+    });
+  }
 
   /* ---------- Cursor glow (desktop only) ---------- */
   var glow = document.getElementById('glowCursor');
