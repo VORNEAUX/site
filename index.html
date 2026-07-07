@@ -2885,7 +2885,15 @@ window.VX_SCROLL_ACTIVE = false;
       for(var bi = 0; bi < NUM_BANDS; bi++){
         bandPrev[bi] = bandLevels[bi];
         var raw = bandCounts[bi] ? (bandSums[bi] / bandCounts[bi]) / 255 : 0;
-        bandLevels[bi] = envFollow(bandLevels[bi], raw, 0.88, 0.2); // steeper attack still — with the analyser no longer pre-smoothing, the band should land on the hit within a frame or two, not ease toward it
+        // Bass bands (0-2) get a much faster release than the rest: with the
+        // old shared release (0.2, ~170ms to fall back down) a fast run of
+        // close-together kicks/bass hits never had time to decay between
+        // hits, so consecutive notes blended into one smeared plateau and
+        // only the first 2-3 registered as distinct onsets. A snappy release
+        // here (~50-60ms to floor) lets each hit in a rapid sequence read as
+        // its own separated spike, which is what the onset detector below
+        // needs to keep tracking every beat instead of losing the thread.
+        bandLevels[bi] = envFollow(bandLevels[bi], raw, 0.88, bi < 3 ? 0.4 : 0.2);
       }
       // bass = first ~3 bands, mid = next ~7, treble = the rest (log-spaced,
       // so this maps roughly to sub/kick, body/vocals, air/cymbals)
@@ -2927,16 +2935,30 @@ window.VX_SCROLL_ACTIVE = false;
        rhythm doesn't live in the low end) — whichever fires first still
        counts as one onset, so tracks that are light on bass stay locked
        to their actual beat instead of drifting onto an independent cycle. */
-    bassAvg += (bassT - bassAvg) * 0.07;
+    // Slowed from 0.07: at that rate, a run of close-together hits (a fast
+    // bassline, not just isolated kicks) pulled the "baseline" up to meet
+    // the elevated level within 2-3 hits, so later hits in the same run no
+    // longer read as spikes above average and stopped being detected. A
+    // slower-adapting baseline stays closer to the true quiet floor through
+    // a whole busy passage, so every real hit keeps registering as a peak.
+    bassAvg += (bassT - bassAvg) * 0.025;
     var bassFlux = bassT - bandPrev[0];
     var bassHit = bassT > bassAvg * 1.24 + 0.04 && bassFlux > 0.012;
 
-    overallAvg += (target - overallAvg) * 0.07;
+    overallAvg += (target - overallAvg) * 0.025;
     var overallFlux = target - prevOverallLevel;
     prevOverallLevel = target;
     var broadHit = target > overallAvg * 1.18 + 0.045 && overallFlux > 0.038;
 
-    if(isPlaying && (bassHit || broadHit) && (now - lastBeatTime) > 140){
+    // Cooldown between onsets used to be a flat 140ms, which blocks
+    // anything faster than ~7 hits/sec outright — a 16th-note bassline at
+    // 140+ BPM is already closer together than that. Once a tempo estimate
+    // exists, scale the minimum gap to it (about a 32nd-note at the current
+    // tempo) so genuinely fast, tight sequences aren't discarded, while
+    // still keeping an absolute floor so we never treat analyser jitter as
+    // two separate hits.
+    var minBeatGap = tempoPeriod > 0 ? Math.max(85, Math.min(140, tempoPeriod * 1000 * 0.3)) : 110;
+    if(isPlaying && (bassHit || broadHit) && (now - lastBeatTime) > minBeatGap){
       var gap = lastBeatTime ? (now - lastBeatTime) / 1000 : 0;
       lastBeatTime = now;
       window.VX_AUDIO.beat = Math.min(1, Math.max((bassT - bassAvg) * 2.4, (target - overallAvg) * 2.8));
