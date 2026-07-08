@@ -18,7 +18,7 @@
     --midnight:#0D0E17;
     --line:#191922;
     --gold:#C9A96E;
-    --gold-dim:rgba(201,169,110,0.35);
+    --gold-dim:color-mix(in srgb, var(--gold) 35%, transparent);
     --smoke:#9E9080;
     --ivory:#F2EDE4;
     --serif:'Cormorant Garamond', serif;
@@ -61,7 +61,7 @@
     inset:0;
     z-index:1;
     pointer-events:none;
-    background:radial-gradient(480px circle at var(--mx,50%) var(--my,30%), rgba(201,169,110,0.08), transparent 60%);
+    background:radial-gradient(480px circle at var(--mx,50%) var(--my,30%), color-mix(in srgb, var(--gold) 8%, transparent), transparent 60%);
     transition:opacity .4s ease;
   }
 
@@ -107,6 +107,7 @@
     color:var(--ivory);
   }
   .nav-mark svg{width:20px;height:20px;display:block;}
+  .nav-mark svg path, #loadVeil svg path{ stroke:var(--gold); transition:stroke .8s var(--ease); }
   .nav-links{display:flex;gap:2.4rem;}
   .nav-links a{
     font-family:var(--sans);
@@ -135,7 +136,7 @@
     width:40px; height:40px;
     align-items:center;
     justify-content:center;
-    background:rgba(201,169,110,0.05);
+    background:color-mix(in srgb, var(--gold) 5%, transparent);
     border:1px solid var(--gold-dim);
     border-radius:2px;
     cursor:pointer;
@@ -203,11 +204,11 @@
       border-radius:16px;
       border:1px solid var(--gold-dim);
       background:
-        radial-gradient(120% 90% at 50% 0%, rgba(201,169,110,0.09), transparent 60%),
+        radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 60%),
         linear-gradient(165deg, rgba(11,11,17,0.92), rgba(6,6,10,0.90));
       backdrop-filter:blur(24px) saturate(140%);
       -webkit-backdrop-filter:blur(24px) saturate(140%);
-      box-shadow:0 26px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,169,110,0.04) inset;
+      box-shadow:0 26px 60px rgba(0,0,0,0.5), 0 0 0 1px color-mix(in srgb, var(--gold) 4%, transparent) inset;
       opacity:0;
       visibility:hidden;
       pointer-events:none;
@@ -458,7 +459,7 @@
     content:'';
     position:absolute;
     inset:0;
-    background:radial-gradient(420px circle at var(--tx,50%) var(--ty,50%), rgba(201,169,110,0.10), transparent 60%);
+    background:radial-gradient(420px circle at var(--tx,50%) var(--ty,50%), color-mix(in srgb, var(--gold) 10%, transparent), transparent 60%);
     opacity:0;
     transition:opacity .4s ease;
   }
@@ -510,7 +511,7 @@
     height:min(84vh, 780px);
     overflow:hidden;
     background:
-      radial-gradient(46% 42% at 50% 40%, rgba(201,169,110,0.08) 0%, transparent 72%),
+      radial-gradient(46% 42% at 50% 40%, color-mix(in srgb, var(--gold) 8%, transparent) 0%, transparent 72%),
       radial-gradient(120% 100% at 50% 20%, #0d0e17 0%, #050509 70%);
     isolation:isolate;
   }
@@ -537,9 +538,9 @@
     z-index:1;
     pointer-events:none;
     background:conic-gradient(from 0deg at 50% 40%,
-      transparent 0deg, rgba(201,169,110,0.10) 7deg, transparent 19deg,
+      transparent 0deg, color-mix(in srgb, var(--gold) 10%, transparent) 7deg, transparent 19deg,
       transparent 96deg, rgba(242,237,228,0.05) 108deg, transparent 124deg,
-      transparent 214deg, rgba(201,169,110,0.08) 226deg, transparent 246deg,
+      transparent 214deg, color-mix(in srgb, var(--gold) 8%, transparent) 226deg, transparent 246deg,
       transparent 360deg);
     mix-blend-mode:screen;
     -webkit-mask-image:radial-gradient(52% 55% at 50% 40%, #000 0%, transparent 74%);
@@ -594,8 +595,8 @@
   .editions-arrow--next{ right:1.8rem; }
   .editions-arrow:hover{
     border-color:var(--gold);
-    background:rgba(201,169,110,0.12);
-    box-shadow:0 0 30px rgba(201,169,110,0.4);
+    background:color-mix(in srgb, var(--gold) 12%, transparent);
+    box-shadow:0 0 30px color-mix(in srgb, var(--gold) 40%, transparent);
     transform:translateY(-50%) scale(1.07);
   }
   .editions-arrow:active{ transform:translateY(-50%) scale(0.95); }
@@ -631,7 +632,7 @@
     cursor:pointer;
     transition:background .3s ease, transform .3s ease, box-shadow .3s ease;
   }
-  .editions-dot.active{ background:var(--gold); transform:scale(1.8); box-shadow:0 0 10px rgba(201,169,110,0.6); }
+  .editions-dot.active{ background:var(--gold); transform:scale(1.8); box-shadow:0 0 10px color-mix(in srgb, var(--gold) 60%, transparent); }
   .editions-noscript{
     position:absolute; inset:0;
     display:flex; align-items:center; justify-content:center;
@@ -713,19 +714,19 @@
     border-radius:2px;
     border:1px solid var(--gold-dim);
     color:var(--ivory);
-    background:rgba(201,169,110,0.07);
+    background:color-mix(in srgb, var(--gold) 7%, transparent);
     cursor:pointer;
     transition:background .3s ease, border-color .3s ease, transform .3s ease, color .3s ease, opacity .3s ease;
   }
   .edition-cta svg{ width:13px; height:13px; transition:transform .3s var(--ease); }
-  .edition-cta:hover{ background:rgba(201,169,110,0.16); border-color:var(--gold); transform:translateY(-2px); }
+  .edition-cta:hover{ background:color-mix(in srgb, var(--gold) 16%, transparent); border-color:var(--gold); transform:translateY(-2px); }
   .edition-cta:hover svg{ transform:translateX(3px); }
   .edition-cta--primary{
     background:var(--gold);
     border-color:var(--gold);
     color:var(--obsidian);
   }
-  .edition-cta--primary:hover{ background:#dcbd88; border-color:#dcbd88; }
+  .edition-cta--primary:hover{ background:color-mix(in srgb, var(--gold) 88%, white); border-color:color-mix(in srgb, var(--gold) 88%, white); }
   .edition-cta.is-disabled{
     opacity:0.38;
     pointer-events:none;
@@ -1038,8 +1039,8 @@
     border-bottom:1px solid var(--line);
     transition:background .4s ease;
   }
-  .signal-row:hover{ background:rgba(201,169,110,0.04); }
-  .signal-row.playing{ background:rgba(201,169,110,0.07); }
+  .signal-row:hover{ background:color-mix(in srgb, var(--gold) 4%, transparent); }
+  .signal-row.playing{ background:color-mix(in srgb, var(--gold) 7%, transparent); }
   .signal-art{
     width:2.6rem;
     height:2.6rem;
@@ -1047,7 +1048,7 @@
     object-fit:cover;
     flex-shrink:0;
     border:1px solid var(--line);
-    background:linear-gradient(155deg, rgba(201,169,110,0.16), rgba(201,169,110,0.02));
+    background:linear-gradient(155deg, color-mix(in srgb, var(--gold) 16%, transparent), color-mix(in srgb, var(--gold) 2%, transparent));
   }
   .signal-row.playing .signal-art{ border-color:var(--gold-dim); }
   .signal-play{
@@ -1125,14 +1126,14 @@
     cursor:pointer;
     text-decoration:none;
     perspective:1000px;
-    background:radial-gradient(120% 160% at 85% 100%, rgba(201,169,110,0.06), transparent 62%);
+    background:radial-gradient(120% 160% at 85% 100%, color-mix(in srgb, var(--gold) 6%, transparent), transparent 62%);
     transition:border-color .6s var(--ease), transform .5s var(--ease);
   }
   .archive-portal:hover{ border-color:var(--gold-dim); }
   .archive-portal::before{
     content:'';
     position:absolute; inset:0;
-    background:radial-gradient(480px circle at var(--tx,80%) var(--ty,50%), rgba(201,169,110,0.14), transparent 60%);
+    background:radial-gradient(480px circle at var(--tx,80%) var(--ty,50%), color-mix(in srgb, var(--gold) 14%, transparent), transparent 60%);
     opacity:0;
     transition:opacity .5s ease;
   }
@@ -1151,8 +1152,8 @@
     border:1px solid var(--gold-dim);
   }
   .archive-portal-rings span:nth-child(1){ animation:archiveSpin 46s linear infinite; }
-  .archive-portal-rings span:nth-child(2){ inset:36px; border-color:rgba(201,169,110,0.18); animation:archiveSpin 32s linear infinite reverse; }
-  .archive-portal-rings span:nth-child(3){ inset:72px; border-color:rgba(201,169,110,0.5); animation:archivePulse 6s ease-in-out infinite; }
+  .archive-portal-rings span:nth-child(2){ inset:36px; border-color:color-mix(in srgb, var(--gold) 18%, transparent); animation:archiveSpin 32s linear infinite reverse; }
+  .archive-portal-rings span:nth-child(3){ inset:72px; border-color:color-mix(in srgb, var(--gold) 50%, transparent); animation:archivePulse 6s ease-in-out infinite; }
   @media (max-width:800px){
     .archive-portal-rings{ width:190px; height:190px; right:-55px; opacity:0.4; }
     .archive-portal-rings span:nth-child(2){ inset:24px; }
@@ -1292,7 +1293,7 @@
 
 <div id="loadVeil">
   <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M6 8 L20 32 L34 8" stroke="#C9A96E" stroke-width="2" stroke-linecap="square"/>
+    <path d="M6 8 L20 32 L34 8" stroke-width="2" stroke-linecap="square"/>
   </svg>
 </div>
 <div id="grain"></div>
@@ -1308,7 +1309,7 @@
 <nav id="mainNav">
   <a href="#top" class="nav-mark">
     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M6 8 L20 32 L34 8" stroke="#C9A96E" stroke-width="2" stroke-linecap="square"/>
+      <path d="M6 8 L20 32 L34 8" stroke-width="2" stroke-linecap="square"/>
     </svg>
     VORNEAUX
   </a>
@@ -1945,6 +1946,19 @@ window.VX_SCROLL_ACTIVE = false;
       fMat.size = 0.05 + level * 0.03;
     }
 
+    // Song identity color: the V-monogram particles and the star field
+    // both take on the current track's hue (VX_THEME), and relax back
+    // to the brand default the same way the rest of the site does —
+    // no separate reset logic needed, since VX_THEME itself already
+    // reverts to the brand default the moment playback stops.
+    var th = window.VX_THEME;
+    if(th){
+      var normHue = ((th.hue % 360) + 360) % 360 / 360;
+      vMat.color.setHSL(normHue, Math.min(0.8, th.sat), Math.min(0.7, th.light));
+      fMat.color.copy(vMat.color);
+      starMat.color.setHSL(normHue, Math.min(0.22, th.sat * 0.35), Math.min(0.92, 0.7 + th.light * 0.25));
+    }
+
     renderer.render(scene, camera);
 
     // footer: assemble once into the V, then hold formed and still —
@@ -2152,15 +2166,19 @@ window.VX_SCROLL_ACTIVE = false;
     var c = document.createElement('canvas');
     c.width = 256; c.height = 256;
     var ctx = c.getContext('2d');
-    var col = new THREE.Color(hexColor);
-    var r = Math.round(col.r*255), g = Math.round(col.g*255), b = Math.round(col.b*255);
+    // Baked as pure white + alpha falloff — the actual color comes from
+    // the material's own .color (set from hexColor initially below, then
+    // kept live in sync with VX_THEME each frame). This is what lets the
+    // halo actually retint per track instead of staying stuck gold.
     var grd = ctx.createRadialGradient(128,128,0,128,128,128);
-    grd.addColorStop(0, 'rgba('+r+','+g+','+b+',0.55)');
-    grd.addColorStop(0.5, 'rgba('+r+','+g+','+b+',0.16)');
-    grd.addColorStop(1, 'rgba('+r+','+g+','+b+',0)');
+    grd.addColorStop(0, 'rgba(255,255,255,0.55)');
+    grd.addColorStop(0.5, 'rgba(255,255,255,0.16)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = grd;
     ctx.fillRect(0,0,256,256);
-    return new THREE.CanvasTexture(c);
+    var tex = new THREE.CanvasTexture(c);
+    tex.__baseColor = hexColor;
+    return tex;
   }
 
   // narrow diagonal light streak — periodically sweeps across the cover
@@ -2301,12 +2319,12 @@ window.VX_SCROLL_ACTIVE = false;
     // ambient glow halo behind the book
     var haloGeo = new THREE.PlaneGeometry(1,1);
     var haloGold = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({
-      map: makeGlowTexture(GOLD), transparent:true, opacity:0.4, depthWrite:false, blending:THREE.AdditiveBlending
+      map: makeGlowTexture(GOLD), color: GOLD, transparent:true, opacity:0.4, depthWrite:false, blending:THREE.AdditiveBlending
     }));
     haloGold.scale.set(5.2, 6.2, 1);
     haloGold.position.z = -0.6;
     var haloIvory = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({
-      map: makeGlowTexture(IVORY), transparent:true, opacity:0.22, depthWrite:false, blending:THREE.AdditiveBlending
+      map: makeGlowTexture(IVORY), color: IVORY, transparent:true, opacity:0.22, depthWrite:false, blending:THREE.AdditiveBlending
     }));
     haloIvory.scale.set(3.1, 3.6, 1);
     haloIvory.position.z = -0.4;
@@ -2582,8 +2600,17 @@ window.VX_SCROLL_ACTIVE = false;
     // like a separate, un-tinted corner of the site while a track plays.
     if(window.VX_THEME){
       var th = window.VX_THEME;
-      keyLight.color.setHSL(((th.hue % 360) + 360) % 360 / 360, Math.min(0.7, th.sat), Math.min(0.66, th.light));
+      var normHue = ((th.hue % 360) + 360) % 360 / 360;
+      keyLight.color.setHSL(normHue, Math.min(0.7, th.sat), Math.min(0.66, th.light));
       accentLight.color.copy(keyLight.color);
+      // Every book's gold edge-line and glow halo also ride the track's
+      // hue — otherwise the books would keep their light re-tinted but
+      // sit inside a permanently gold-outlined, gold-haloed frame.
+      books.forEach(function(b){
+        b.edgeMat.color.setHSL(normHue, Math.min(0.65, th.sat), Math.min(0.72, th.light));
+        b.haloGold.material.color.setHSL(normHue, Math.min(0.75, th.sat), Math.min(0.68, th.light));
+        b.haloIvory.material.color.setHSL(normHue, Math.min(0.2, th.sat * 0.3), Math.min(0.92, 0.72 + th.light * 0.2));
+      });
     }
 
     if(!reduceMotion){ dust.rotation.y += dt*0.012; }
@@ -2793,6 +2820,113 @@ window.VX_SCROLL_ACTIVE = false;
       h = (h * 16777619) >>> 0;
     }
     return h >>> 0;
+  }
+
+  /* =========================================================
+     Per-track visual identity — retrieved from each Signal's own
+     cover art, then de-collided against the rest of the catalog so
+     no two tracks ever end up with the same (or near-same) theme.
+
+     Why this exists: sampling a cover's dominant color alone isn't
+     enough. VORNEAUX's covers share one brand palette (obsidian,
+     gold, cool night tones), so several tracks can naturally sample
+     to very similar hues — exactly the "two songs look the same"
+     problem. This resolves the whole catalog together: extract every
+     track's real hue first, then nudge any that sit too close to
+     each other apart on the color wheel until every Signal reads as
+     genuinely, immediately distinct — while still starting from the
+     track's *own* artwork, not an arbitrary color.
+  ========================================================= */
+  var TRACK_THEME_CACHE = Object.create(null); // id -> {hue, sat, light}, resolved + de-collided
+
+  function circDelta(a, b){ return ((b - a + 540) % 360) - 180; } // shortest signed a->b distance, (-180,180]
+
+  // Relaxes a list of raw hues apart from each other until every pair is
+  // at least minSep degrees apart on the color wheel (best-effort — if
+  // the catalog is large enough that minSep isn't fully satisfiable for
+  // every pair, this still converges to the most even spread it can).
+  function spreadHues(rawHues, minSep){
+    var n = rawHues.length;
+    if(n < 2 || minSep <= 0) return rawHues.slice();
+    var hues = rawHues.slice();
+    for(var iter = 0; iter < 60; iter++){
+      var moved = false;
+      for(var i = 0; i < n; i++){
+        for(var j = i + 1; j < n; j++){
+          var d = circDelta(hues[i], hues[j]);
+          var dist = Math.abs(d);
+          if(dist < minSep){
+            moved = true;
+            var push = (minSep - dist) / 2;
+            var dir = d >= 0 ? 1 : -1;
+            hues[j] = ((hues[j] + dir * push) % 360 + 360) % 360;
+            hues[i] = ((hues[i] - dir * push) % 360 + 360) % 360;
+          }
+        }
+      }
+      if(!moved) break;
+    }
+    return hues;
+  }
+
+  function extractCoverThemePromise(url){
+    return new Promise(function(resolve){ extractCoverTheme(url, resolve); });
+  }
+
+  // Resolves and caches a full theme (hue/sat/light) for every track in
+  // the catalog, run once whenever SIGNALS (re)loads. Safe to call again
+  // if the catalog changes later — it recomputes and re-de-collides the
+  // whole set rather than only the new entries, so identities stay well
+  // spread even as tracks are added or removed.
+  function resolveDistinctThemes(tracks){
+    var extractions = tracks.map(function(t){ return extractCoverThemePromise(t.cover); });
+    return Promise.all(extractions).then(function(samples){
+      var raw = tracks.map(function(t, i){
+        var hsl = samples[i];
+        if(hsl){
+          return {
+            hue: hsl.h,
+            sat: Math.min(0.72, Math.max(0.42, hsl.s)),
+            light: Math.min(0.68, Math.max(0.5, hsl.l))
+          };
+        }
+        // No cover to sample (missing file, load error, tainted canvas):
+        // fall back to a deterministic hue from the track's own id, so
+        // it still gets a stable, reproducible identity.
+        var seed = hashSeed(t.id || t.src || t.title || String(i));
+        return { hue: seed % 360, sat: 0.52, light: 0.6 };
+      });
+      var n = raw.length;
+      var minSep = n > 1 ? Math.max(40, Math.min((360 / n) * 0.75, 100)) : 0;
+      var spread = spreadHues(raw.map(function(r){ return r.hue; }), minSep);
+      tracks.forEach(function(t, i){
+        TRACK_THEME_CACHE[t.id] = { hue: spread[i], sat: raw[i].sat, light: raw[i].light };
+      });
+      return TRACK_THEME_CACHE;
+    });
+  }
+
+  // Best-effort single-track de-collision, used only as a fallback for a
+  // track whose theme hasn't been resolved by resolveDistinctThemes yet
+  // (e.g. it was just played a moment after the catalog loaded, before
+  // the background extraction finished).
+  function nudgeAwayFromCache(hue, excludeId){
+    var ids = Object.keys(TRACK_THEME_CACHE);
+    var minSep = 40;
+    for(var iter = 0; iter < 20; iter++){
+      var moved = false;
+      for(var k = 0; k < ids.length; k++){
+        if(ids[k] === excludeId) continue;
+        var other = TRACK_THEME_CACHE[ids[k]].hue;
+        var d = circDelta(other, hue);
+        if(Math.abs(d) < minSep){
+          hue = ((hue + (d >= 0 ? -1 : 1) * (minSep - Math.abs(d))) % 360 + 360) % 360;
+          moved = true;
+        }
+      }
+      if(!moved) break;
+    }
+    return hue;
   }
 
   /* ---------- Cinematic entrance veil ---------- */
@@ -3113,26 +3247,39 @@ window.VX_SCROLL_ACTIVE = false;
     window.VX_AUDIO.playing = true;
     window.VX_AUDIO.seed = hashSeed(track.id || track.src || String(index));
 
-    // Song identity color, step 1: an instant, deterministic hue from the
-    // track itself so the entrance flash and UI accent already feel
-    // "tuned" to this Signal before any image has even loaded.
-    snapTheme(window.VX_AUDIO.seed % 360, 0.55, 0.6);
-
-    window.dispatchEvent(new CustomEvent('vx:immersive-enter', {
-      detail: { seed: window.VX_AUDIO.seed, title: track.title || '' }
-    }));
-
-    // Song identity color, step 2: refine toward the actual dominant
-    // color of the cover art, once sampled. Guarded against races if the
-    // person skips to another track before this resolves.
-    extractCoverTheme(track.cover, function(hsl){
-      if(currentIndex !== index || !window.VX_AUDIO.playing) return;
-      if(!hsl) return;
-      var sat = Math.min(0.72, Math.max(0.4, hsl.s));
-      var light = Math.min(0.68, Math.max(0.5, hsl.l));
-      setThemeTarget(hsl.h, sat, light);
-      window.dispatchEvent(new CustomEvent('vx:theme-refined', { detail: { hue: hsl.h } }));
-    });
+    // Song identity color: use the catalog-wide, de-collided theme
+    // resolved in the background for every track (see
+    // resolveDistinctThemes). This is what guarantees each Signal gets
+    // its own distinct color rather than converging on a shared one —
+    // and it's instant, since the extraction already ran once at load.
+    var cachedTheme = TRACK_THEME_CACHE[track.id];
+    if(cachedTheme){
+      snapTheme(cachedTheme.hue, cachedTheme.sat, cachedTheme.light);
+      window.dispatchEvent(new CustomEvent('vx:immersive-enter', {
+        detail: { seed: window.VX_AUDIO.seed, title: track.title || '' }
+      }));
+    } else {
+      // Fallback: the catalog-wide resolution hasn't finished yet (rare —
+      // only possible in the first instant after the page loads). Show an
+      // instant, deterministic color immediately so nothing ever flashes
+      // the wrong hue, then resolve and cache this track's real theme in
+      // the background exactly like the rest of the catalog, nudging it
+      // away from any themes already resolved so far.
+      snapTheme(window.VX_AUDIO.seed % 360, 0.55, 0.6);
+      window.dispatchEvent(new CustomEvent('vx:immersive-enter', {
+        detail: { seed: window.VX_AUDIO.seed, title: track.title || '' }
+      }));
+      extractCoverTheme(track.cover, function(hsl){
+        if(currentIndex !== index || !window.VX_AUDIO.playing) return;
+        var theme = hsl
+          ? { hue: hsl.h, sat: Math.min(0.72, Math.max(0.42, hsl.s)), light: Math.min(0.68, Math.max(0.5, hsl.l)) }
+          : { hue: window.VX_AUDIO.seed % 360, sat: 0.52, light: 0.6 };
+        theme.hue = nudgeAwayFromCache(theme.hue, track.id);
+        TRACK_THEME_CACHE[track.id] = theme;
+        setThemeTarget(theme.hue, theme.sat, theme.light);
+        window.dispatchEvent(new CustomEvent('vx:theme-refined', { detail: { hue: theme.hue } }));
+      });
+    }
 
     var handled = false;
     function fallback(){
@@ -3471,6 +3618,11 @@ window.VX_SCROLL_ACTIVE = false;
     NOTES = results[1];
     renderSignals();
     renderNotes();
+    // Runs in the background — the row list and playback are already
+    // usable the moment renderSignals() returns. By the time a person
+    // actually clicks play (a few hundred ms, at minimum), this has
+    // almost always already resolved every track's de-collided theme.
+    resolveDistinctThemes(SIGNALS)['catch'](function(){ /* extraction failures are handled per-track above */ });
   });
 })();
 </script>
@@ -4127,9 +4279,17 @@ window.VX_SCROLL_ACTIVE = false;
     var th = window.VX_THEME || THEME_DEFAULT_FALLBACK;
     var bass = audio.bass || 0, mid = audio.mid || 0, treble = audio.treble || 0;
     var total = bass + mid + treble + 0.001;
-    var liveHue = (HUE.bass * bass + HUE.mid * mid + HUE.treble * treble) / total;
-    var dh = ((liveHue - th.hue + 540) % 360) - 180;
-    var hue = (th.hue + dh * 0.18 + 360) % 360;
+    // Site-wide accent is always anchored on the track's own resolved
+    // identity hue (th.hue — set per-track, de-collided against the rest
+    // of the catalog; see resolveDistinctThemes). The bass/mid/treble mix
+    // only adds a small, bounded "breathing" wobble on top for musical
+    // life — it must never be allowed to pull the whole interface toward
+    // one of a few shared anchor hues, or every track would start looking
+    // the same the moment the spectral balance leans the same way.
+    var spectralLean = (HUE.bass * bass + HUE.mid * mid + HUE.treble * treble) / total;
+    var wobbleTarget = ((spectralLean - th.hue + 540) % 360) - 180;
+    var wobble = Math.max(-14, Math.min(14, wobbleTarget * 0.22));
+    var hue = (th.hue + wobble + 360) % 360;
     var sat = Math.min(80, th.sat * 100 + (audio.level || 0) * 14 + (audio.beat || 0) * 10);
     var lightRaw = Math.min(74, th.light * 100 + (audio.level || 0) * 7 + (audio.beat || 0) * 6);
 
