@@ -89,7 +89,7 @@
       radial-gradient(700px circle at 50% -10%, color-mix(in srgb, var(--gold) 7%, transparent), transparent 60%);
   }
 
-  nav{
+  .site-nav{
     position:sticky; top:0; z-index:50;
     display:flex; align-items:center; justify-content:space-between;
     padding:22px 6vw;
@@ -110,6 +110,15 @@
   h1.headline{ font-family:var(--serif); font-weight:400; font-style:italic; font-size:clamp(34px,5.4vw,58px); line-height:1.08; letter-spacing:-.01em; margin:20px 0 22px; }
   .deck{ font-family:var(--sans); font-weight:300; font-size:clamp(16px,2vw,19px); color:var(--smoke); max-width:560px; margin:0 auto; line-height:1.6; }
   .divider{ width:64px; height:1px; background:var(--gold-dim); margin:36px auto 0; }
+
+  /* ---------- imagery ---------- */
+  .hero-art{ margin:44px 0 0; border:1px solid var(--line); border-radius:2px; overflow:hidden; background:var(--midnight); }
+  .hero-art svg{ display:block; width:100%; height:auto; }
+  .diagram-box{ margin:34px 0 42px; padding:32px 30px; border:1px solid var(--line); border-radius:2px; background:color-mix(in srgb, var(--midnight) 55%, transparent); }
+  .diagram-title{ font-family:var(--sans); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin-bottom:22px; text-align:center; }
+  .chart-legend{ display:flex; flex-direction:column; gap:12px; }
+  .legend-row{ display:flex; align-items:center; gap:10px; font-family:var(--sans); font-size:13.5px; color:var(--ivory); }
+  .legend-swatch{ width:12px; height:12px; border-radius:2px; flex-shrink:0; }
 
   .toc{ margin:48px 0 56px; padding:26px 30px; border:1px solid var(--line); border-radius:2px; background:color-mix(in srgb, var(--midnight) 60%, transparent); }
   .toc-title{ font-family:var(--sans); font-size:11.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
@@ -178,7 +187,7 @@
 
 <div id="ambient" aria-hidden="true"></div>
 
-<nav>
+<nav class="site-nav">
   <a href="../index.html" class="nav-mark">
     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M6 8 L20 32 L34 8" stroke="var(--gold)" stroke-width="2" stroke-linecap="square"/>
@@ -195,6 +204,44 @@
     <h1 class="headline">Systems over <em>show</em></h1>
     <p class="deck">Why the tools that last are built for use, not for the demo — and what changes once you start judging software by what it costs you in year three, not day one.</p>
     <p class="meta-line">Published July 2026 · 6 min read</p>
+
+    <div class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 1200 460" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bgGrad3" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#0D0E17"/>
+            <stop offset="100%" stop-color="#050509"/>
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="460" fill="url(#bgGrad3)"/>
+        <line x1="600" y1="60" x2="600" y2="400" stroke="#191922" stroke-width="1"/>
+        <!-- left: the show — scattered marks, fading -->
+        <g stroke="#C9A96E" stroke-width="1.3">
+          <path d="M110,120 l14,14 m0,-14 l-14,14" stroke-opacity="0.65"/>
+          <path d="M210,90 l16,16 m0,-16 l-16,16" stroke-opacity="0.5"/>
+          <path d="M160,220 l12,12 m0,-12 l-12,12" stroke-opacity="0.45"/>
+          <path d="M300,160 l14,14 m0,-14 l-14,14" stroke-opacity="0.35"/>
+          <path d="M260,300 l10,10 m0,-10 l-10,10" stroke-opacity="0.3"/>
+          <path d="M390,240 l12,12 m0,-12 l-12,12" stroke-opacity="0.2"/>
+          <path d="M420,110 l10,10 m0,-10 l-10,10" stroke-opacity="0.18"/>
+          <path d="M480,330 l10,10 m0,-10 l-10,10" stroke-opacity="0.12"/>
+        </g>
+        <text x="110" y="400" font-family="Jost, sans-serif" font-size="12" letter-spacing="2" fill="#9E9080">THE SHOW</text>
+        <!-- right: the system — solid interlocking rings -->
+        <g fill="none" stroke="#C9A96E" stroke-width="1.2">
+          <circle cx="820" cy="220" r="70" stroke-opacity="0.7"/>
+          <circle cx="930" cy="220" r="70" stroke-opacity="0.7"/>
+          <circle cx="875" cy="150" r="70" stroke-opacity="0.4"/>
+          <g stroke-opacity="0.35">
+            <line x1="820" y1="150" x2="820" y2="290"/>
+            <line x1="930" y1="150" x2="930" y2="290"/>
+            <line x1="785" y1="220" x2="965" y2="220"/>
+          </g>
+        </g>
+        <text x="820" y="400" font-family="Jost, sans-serif" font-size="12" letter-spacing="2" fill="#9E9080">THE SYSTEM</text>
+      </svg>
+    </div>
+
     <div class="divider"></div>
   </header>
 
@@ -226,6 +273,25 @@
     <h2 id="cost">The real cost of a subscription is <em>time, not money</em></h2>
 
     <p>The monthly fee is the visible cost. The invisible one is worse: a subscription tool can change its pricing, sunset a feature you depend on, get acquired, or shut down entirely — and when it does, the system you built your workflow around goes with it. You don't just lose the tool. You lose the muscle memory, the templates, the data that lived inside it.</p>
+
+    <div class="diagram-box">
+      <div class="diagram-title">Cumulative Cost Over 36 Months</div>
+      <svg viewBox="0 0 640 260" width="100%" style="max-width:560px;display:block;margin:0 auto;" aria-hidden="true">
+        <line x1="50" y1="220" x2="600" y2="220" stroke="#191922" stroke-width="1"/>
+        <line x1="50" y1="220" x2="50" y2="30" stroke="#191922" stroke-width="1"/>
+        <path d="M50,208 L600,52" fill="none" stroke="#C9A96E" stroke-width="1.6"/>
+        <path d="M50,196 L600,196" fill="none" stroke="#9E9080" stroke-width="1.6" stroke-dasharray="5 5"/>
+        <line x1="205" y1="220" x2="205" y2="163" stroke="#C9A96E" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="3 4"/>
+        <circle cx="205" cy="163" r="3.5" fill="#C9A96E"/>
+        <text x="50" y="240" font-family="Jost, sans-serif" font-size="11" letter-spacing="1" fill="#9E9080">MONTH 0</text>
+        <text x="600" y="240" text-anchor="end" font-family="Jost, sans-serif" font-size="11" letter-spacing="1" fill="#9E9080">MONTH 36</text>
+        <text x="215" y="158" font-family="Jost, sans-serif" font-size="11" letter-spacing="1" fill="#C9A96E">BREAKEVEN</text>
+      </svg>
+      <div class="chart-legend" style="flex-direction:row;justify-content:center;gap:28px;margin-top:18px;">
+        <div class="legend-row"><span class="legend-swatch" style="background:#C9A96E;"></span> Subscription — rises every month</div>
+        <div class="legend-row"><span class="legend-swatch" style="background:#9E9080;"></span> One-time purchase — paid once, then flat</div>
+      </div>
+    </div>
 
     <table class="cost-table">
       <tr><th>Over 3 years</th><th>$15/mo subscription</th><th>One-time purchase</th></tr>
