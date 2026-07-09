@@ -1,23 +1,23 @@
 [
   {
-    "id": "building-before-the-wave",
-    "tag": "Coming soon",
-    "title": "Building Before the Wave",
-    "excerpt": "On releasing ideas before the audience knows it's looking for them.",
-    "href": ""
+    "id": "freelance-rate-tax-formula",
+    "tag": "Field Notes · Money",
+    "title": "How Much Should You Actually Charge as a Freelancer?",
+    "excerpt": "The tax-inclusive rate formula most calculators skip entirely.",
+    "href": "notes/freelance-rate-tax-formula.html"
+  },
+  {
+    "id": "prompt-engineering-beginners-guide",
+    "tag": "Field Notes · AI",
+    "title": "Why Your ChatGPT Prompts Keep Failing",
+    "excerpt": "The framework that separates a generic answer from an expert one.",
+    "href": "notes/prompt-engineering-beginners-guide.html"
   },
   {
     "id": "systems-over-show",
-    "tag": "Coming soon",
+    "tag": "Field Notes · Philosophy",
     "title": "Systems Over Show",
     "excerpt": "Why the tools that last are built for use, not for the demo.",
-    "href": ""
-  },
-  {
-    "id": "the-discipline-of-moving-first",
-    "tag": "Coming soon",
-    "title": "The Discipline of Moving First",
-    "excerpt": "What it actually takes to arrive before the trend has a name.",
-    "href": ""
+    "href": "notes/systems-over-show.html"
   }
 ]
