@@ -1,23 +1,23 @@
 [
   {
-    "id": "freelance-rate-tax-formula",
-    "tag": "Field Notes · Money",
-    "title": "How Much Should You Actually Charge as a Freelancer?",
-    "excerpt": "The tax-inclusive rate formula most calculators skip entirely.",
-    "href": "notes/freelance-rate-tax-formula.html"
+    "id": "how-to-price-freelance-work",
+    "tag": "Pricing & Money",
+    "title": "How Much Should You Really Charge as a Freelancer?",
+    "excerpt": "Not the vague advice about \u201cknowing your worth.\u201d The actual rate formula \u2014 income, real billable hours, taxes, and margin \u2014 with a worked example.",
+    "href": "notes/how-to-price-freelance-work.html"
   },
   {
-    "id": "prompt-engineering-beginners-guide",
-    "tag": "Field Notes · AI",
-    "title": "Why Your ChatGPT Prompts Keep Failing",
-    "excerpt": "The framework that separates a generic answer from an expert one.",
-    "href": "notes/prompt-engineering-beginners-guide.html"
+    "id": "ai-prompt-engineering-guide",
+    "tag": "AI & Systems",
+    "title": "How to Write AI Prompts That Actually Work",
+    "excerpt": "Not another list of templates to copy and paste. The reasoning frameworks underneath \u2014 so your prompts still work when the task changes.",
+    "href": "notes/ai-prompt-engineering-guide.html"
   },
   {
-    "id": "systems-over-show",
-    "tag": "Field Notes · Philosophy",
-    "title": "Systems Over Show",
-    "excerpt": "Why the tools that last are built for use, not for the demo.",
-    "href": "notes/systems-over-show.html"
+    "id": "one-person-business-systems",
+    "tag": "Systems",
+    "title": "How to Run a One-Person Business Without Burning Out",
+    "excerpt": "Hustle doesn't scale a solo business \u2014 systems do. The two systems every one-person operation actually needs.",
+    "href": "notes/one-person-business-systems.html"
   }
 ]
